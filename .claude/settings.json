@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export PATH=\"/c/Users/sa13367/node/node-v20.18.3-win-x64:$PATH\")",
+      "Bash(npx create-next-app@14 tempapp --typescript --tailwind --eslint --app --src-dir --no-import-alias --use-npm)",
+      "Bash(cp -r tempapp/* .)",
+      "Bash(cp tempapp/.gitignore .)",
+      "Bash(cp tempapp/.eslintrc.json .)",
+      "Bash(cp -r tempapp/node_modules .)",
+      "Bash(cp -r tempapp/.next .)",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Read(//c/Users/sa13367/AppData/Local/Temp/claude/c--Users-sa13367-Downloads-appforzamira/fdc56b5e-3b5c-427d-8912-4bc422df607f/tasks/**)",
+      "Bash(node -e \"const pdf = require\\('pdf-parse'\\); console.log\\(typeof pdf, Object.keys\\(pdf\\)\\)\")",
+      "Bash(node -e \"const {PDFParse} = require\\('pdf-parse'\\); const p = new PDFParse\\(\\); console.log\\(typeof p, Object.getOwnPropertyNames\\(Object.getPrototypeOf\\(p\\)\\)\\)\")",
+      "Bash(node -e \"const {PDFParse} = require\\('pdf-parse'\\); console.log\\(typeof PDFParse\\)\")",
+      "Bash(npm ls:*)",
+      "Bash(node -e ':*)",
+      "Bash(npm uninstall:*)",
+      "Bash(node -e \"const pdf = require\\('pdf-parse'\\); console.log\\(typeof pdf\\)\")",
+      "Bash(npx kill-port:*)",
+      "Bash(powershell.exe -NoProfile -Command \"Get-Process -Name 'node' -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(ls /c/Users/sa13367/Downloads/appforzamira/next.config.*)",
+      "Bash(gh --version)",
+      "Bash(cmd.exe /c \"gh --version\")",
+      "Bash(git config:*)",
+      "Bash(powershell.exe -NoProfile -Command \"Invoke-WebRequest -Uri 'https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_windows_amd64.zip' -OutFile 'C:\\\\Users\\\\sa13367\\\\Downloads\\\\gh.zip'\")",
+      "Bash(powershell.exe -NoProfile -Command \"Expand-Archive -Path 'C:\\\\Users\\\\sa13367\\\\Downloads\\\\gh.zip' -DestinationPath 'C:\\\\Users\\\\sa13367\\\\gh' -Force\")",
+      "Bash(export PATH=\"/c/Users/sa13367/gh/gh_2.67.0_windows_amd64/bin:/c/Users/sa13367/node/node-v20.18.3-win-x64:$PATH\")",
+      "Read(//c/Users/sa13367/gh/gh_2.67.0_windows_amd64/**)",
+      "Read(//c/Users/sa13367/gh//**)",
+      "Bash(export PATH=\"/c/Users/sa13367/gh/bin:$PATH\")",
+      "Bash(export PATH=\"/c/Users/sa13367/gh/bin:/c/Users/sa13367/node/node-v20.18.3-win-x64:$PATH\")",
+      "Bash(gh auth:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
