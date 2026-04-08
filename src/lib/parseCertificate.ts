@@ -20,8 +20,8 @@ export interface CertificateData {
   Q: string; // Стоимость
   R: string; // Сумма к оплате
   S: string; // Испытаний
-  T: string; // Номер фактуры
-  U: string; // Дата
+  T: string; // Номер сч. фактуры
+  U: string; // Дата опл. сч.
   V: string; // ИНН
 }
 
@@ -265,8 +265,8 @@ export const COLUMN_LABELS: Record<string, string> = {
   Q: 'Стоимость (сомони)',
   R: 'Сумма к оплате',
   S: 'Испытаний',
-  T: '№ фактуры',
-  U: 'Дата',
+  T: 'Номер сч. фактуры',
+  U: 'Дата опл. сч.',
   V: 'ИНН',
 };
 
