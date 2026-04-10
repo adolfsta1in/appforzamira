@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Navigation from "./components/Navigation";
 
 export const metadata: Metadata = {
   title: "Реестр сертификатов — Тоҷикстандарт",
@@ -13,7 +14,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <body>{children}</body>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>
+        <Navigation />
+        {children}
+      </body>
     </html>
   );
 }
