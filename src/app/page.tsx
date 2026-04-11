@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   CertificateFormData,
   EMPTY_FORM_DATA,
@@ -9,6 +9,7 @@ import {
   COLUMN_LABELS,
 } from '@/lib/certificateTypes';
 import CertificateEditor from './components/CertificateEditor';
+import { supabase } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 
 export default function Home() {
@@ -21,6 +22,7 @@ export default function Home() {
   const [showRegistry, setShowRegistry] = useState(false);
   const [calibrationMode, setCalibrationMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentPdfFileRef = useRef<File | null>(null);
 
   const updateField = useCallback((key: keyof CertificateFormData, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -39,6 +41,7 @@ export default function Home() {
 
     const url = URL.createObjectURL(file);
     setPdfUrl(url);
+    currentPdfFileRef.current = file;
 
     const fd = new FormData();
     fd.append('pdf', file);
@@ -85,16 +88,75 @@ export default function Home() {
     }
   }, [formData]);
 
-  // Save to registry
-  const saveToRegistry = useCallback(() => {
+  // Save to Supabase registry
+  const saveToRegistry = useCallback(async () => {
+    setSaved(false);
+    setError(null);
+
     try {
-      const existing = JSON.parse(localStorage.getItem('cert_registry') || '[]');
-      existing.push({ ...formData, savedAt: new Date().toISOString() });
-      localStorage.setItem('cert_registry', JSON.stringify(existing));
+      let pdfStoragePath: string | null = null;
+
+      // Upload PDF to Supabase Storage if available
+      const pdfFile = currentPdfFileRef.current;
+      if (pdfFile) {
+        const fileName = `${Date.now()}_${pdfFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { error: uploadError } = await supabase.storage
+          .from('pdf-files')
+          .upload(fileName, pdfFile, { contentType: 'application/pdf', upsert: false });
+
+        if (uploadError) {
+          console.warn('PDF upload failed:', uploadError.message);
+        } else {
+          pdfStoragePath = fileName;
+        }
+      }
+
+      const { error: insertError } = await supabase
+        .from('certificates')
+        .insert({
+          cert_number: formData.cert_number,
+          date_start_day: formData.date_start_day,
+          date_start_month: formData.date_start_month,
+          date_start_year: formData.date_start_year,
+          date_end_day: formData.date_end_day,
+          date_end_month: formData.date_end_month,
+          date_end_year: formData.date_end_year,
+          cert_body_name: formData.cert_body_name,
+          cert_body_address: formData.cert_body_address,
+          cert_body_number: formData.cert_body_number,
+          products: formData.products,
+          quantity: formData.quantity,
+          code_num: formData.code_num,
+          code_nm: formData.code_nm,
+          norm_documents: formData.norm_documents,
+          country: formData.country,
+          issued_to_org: formData.issued_to_org,
+          issued_to_address: formData.issued_to_address,
+          basis_document: formData.basis_document,
+          additional_info: formData.additional_info,
+          head_name: formData.head_name,
+          dept_head_name: formData.dept_head_name,
+          serial_number: formData.serial_number,
+          copy_number: formData.copy_number,
+          cert_processing: formData.cert_processing,
+          total_cost: formData.total_cost,
+          amount_due: formData.amount_due,
+          tests: formData.tests,
+          invoice_number: formData.invoice_number,
+          invoice_date: formData.invoice_date,
+          inn: formData.inn,
+          pdf_storage_path: pdfStoragePath,
+        });
+
+      if (insertError) {
+        setError('Ошибка при сохранении: ' + insertError.message);
+        return;
+      }
+
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
-      alert('Ошибка при сохранении');
+      setError('Не удалось сохранить в базу данных');
     }
   }, [formData]);
 
@@ -133,6 +195,7 @@ export default function Home() {
     setError(null);
     setCopied(false);
     setSaved(false);
+    currentPdfFileRef.current = null;
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
 
@@ -227,7 +290,7 @@ export default function Home() {
         )}
 
         <div className="flex gap-4">
-          {/* Main: Certificate editor (the A4 page with inline fields) */}
+          {/* Main: Certificate editor */}
           <div className="flex-shrink-0">
             <div
               id="print-area-wrapper"
@@ -241,7 +304,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Side panel: registry-only fields + cert number */}
+          {/* Side panel: registry-only fields */}
           {showRegistry && (
             <div className="flex-1 min-w-[280px] max-w-[360px] no-print">
               <div className="border rounded-lg bg-white p-4 space-y-3 sticky top-4">
