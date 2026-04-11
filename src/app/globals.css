@@ -45,36 +45,28 @@ body {
 
 /* Hide elements with no-print class when printing */
 @media print {
-  .no-print {
-    display: none !important;
+  /* Скрываем всё через visibility — работает на любой глубине вложенности */
+  body * {
+    visibility: hidden;
   }
 
-  body > *:not(#print-area-wrapper) {
-    display: none !important;
-  }
-
-  #print-area-wrapper {
-    display: block !important;
-    border: none !important;
-    box-shadow: none !important;
+  /* Показываем только область сертификата */
+  #print-area,
+  #print-area * {
+    visibility: visible;
   }
 
   #print-area {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 210mm;
     height: 297mm;
     margin: 0;
     padding: 0;
-    background: none !important;
+    background: #fff !important;
     box-shadow: none !important;
     border: none !important;
-  }
-
-  /* Hide blank background when printing */
-  #print-area .blank-bg {
-    display: none !important;
   }
 
   /* Make editable fields look like plain text when printing */
@@ -92,7 +84,6 @@ body {
     color: transparent !important;
   }
 
-  /* Hide select dropdown arrows */
   select.cert-field {
     -moz-appearance: none !important;
   }

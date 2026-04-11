@@ -267,6 +267,8 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
           const value = formData[fieldKey] || '';
           const isSelected = calibrationMode && selected === field;
 
+          const isNameField = field === 'head_name' || field === 'dept_head_name';
+
           const baseStyle: React.CSSProperties = {
             position: 'absolute',
             top: `${layout.top}mm`,
@@ -275,7 +277,9 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
             height: `${layout.height}mm`,
             fontSize: `${layout.fontSize}pt`,
             textAlign: layout.textAlign,
-            fontFamily: "'PT Serif', 'Times New Roman', serif",
+            fontFamily: "'Times New Roman', serif",
+            fontWeight: 'bold',
+            fontStyle: isNameField ? 'normal' : 'italic',
             color: '#000',
             background: 'transparent',
             border: calibrationMode
