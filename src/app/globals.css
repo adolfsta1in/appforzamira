@@ -45,6 +45,24 @@ body {
 
 /* Hide elements with no-print class when printing */
 @media print {
+  /* Remove non-certificate content from flow to prevent extra pages */
+  .no-print {
+    display: none !important;
+  }
+
+  .min-h-screen {
+    min-height: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  #print-area-wrapper {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
   /* Скрываем всё через visibility — работает на любой глубине вложенности */
   body * {
     visibility: hidden;
@@ -69,8 +87,25 @@ body {
     border: none !important;
   }
 
-  /* Make editable fields look like plain text when printing */
-  .cert-field {
+  /* input/textarea: keep padding & appearance so box model is identical to screen */
+  input.cert-field,
+  textarea.cert-field {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+  }
+
+  input.cert-field::placeholder,
+  textarea.cert-field::placeholder {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  /* select: remove appearance to hide dropdown arrow */
+  select.cert-field {
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -78,14 +113,8 @@ body {
     padding: 0 !important;
     appearance: none !important;
     -webkit-appearance: none !important;
-  }
-
-  .cert-field::placeholder {
-    color: transparent !important;
-  }
-
-  select.cert-field {
-    -moz-appearance: none !important;
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
   }
 
   @page {
