@@ -315,7 +315,7 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
                 <select
                   value={value}
                   onChange={e => onFieldChange(fieldKey, e.target.value)}
-                  onMouseDown={e => { if (calibrationMode) { handleMouseDown(e as any, field, 'drag'); } }}
+                  onMouseDown={e => { if (calibrationMode) { handleMouseDown(e, field, 'drag'); } }}
                   style={{
                     ...baseStyle,
                     position: 'relative',

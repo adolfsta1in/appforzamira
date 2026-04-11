@@ -14,7 +14,7 @@ import * as XLSX from 'xlsx';
 
 export default function Home() {
   const [formData, setFormData] = useState<CertificateFormData>(EMPTY_FORM_DATA);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
