@@ -19,31 +19,48 @@ export interface AllFieldLayouts {
 
 // Initial approximate positions (user will drag to correct positions)
 const DEFAULT_LAYOUTS: AllFieldLayouts = {
-  cert_body_number:  { top: 90,  left: 60,  width: 83,  height: 6,  fontSize: 11, textAlign: 'center' },
-  date_start_day:    { top: 68,  left: 55,  width: 10,  height: 6,  fontSize: 12, textAlign: 'center' },
-  date_start_month:  { top: 68,  left: 66,  width: 38,  height: 6,  fontSize: 12, textAlign: 'center' },
-  date_start_year:   { top: 68,  left: 104, width: 10,  height: 6,  fontSize: 12, textAlign: 'center' },
-  date_end_day:      { top: 68,  left: 134, width: 10,  height: 6,  fontSize: 12, textAlign: 'center' },
-  date_end_month:    { top: 68,  left: 145, width: 36,  height: 6,  fontSize: 12, textAlign: 'center' },
-  date_end_year:     { top: 68,  left: 182, width: 10,  height: 6,  fontSize: 12, textAlign: 'center' },
-  cert_body_name:    { top: 78,  left: 44,  width: 142, height: 6,  fontSize: 13, textAlign: 'center' },
-  cert_body_address: { top: 84.5,left: 44,  width: 142, height: 6,  fontSize: 12, textAlign: 'center' },
-  products:          { top: 101, left: 44,  width: 125, height: 18, fontSize: 13, textAlign: 'center' },
-  quantity:          { top: 113, left: 44,  width: 125, height: 6,  fontSize: 13, textAlign: 'center' },
-  code_num:          { top: 101, left: 170, width: 30,  height: 5,  fontSize: 8,  textAlign: 'center' },
-  code_nm:           { top: 108, left: 170, width: 30,  height: 5,  fontSize: 8,  textAlign: 'center' },
-  norm_documents:    { top: 125, left: 44,  width: 125, height: 12, fontSize: 11, textAlign: 'center' },
-  country:           { top: 155, left: 44,  width: 142, height: 6,  fontSize: 12, textAlign: 'center' },
-  issued_to_org:     { top: 174, left: 50,  width: 136, height: 6,  fontSize: 13, textAlign: 'center' },
-  issued_to_address: { top: 180, left: 50,  width: 136, height: 6,  fontSize: 13, textAlign: 'center' },
-  basis_document:    { top: 192, left: 50,  width: 136, height: 16, fontSize: 13, textAlign: 'left' },
-  additional_info:   { top: 210, left: 50,  width: 136, height: 18, fontSize: 11, textAlign: 'left' },
-  head_name:         { top: 239, left: 148, width: 44,  height: 6,  fontSize: 13, textAlign: 'center' },
-  dept_head_name:    { top: 256, left: 148, width: 44,  height: 6,  fontSize: 13, textAlign: 'center' },
+  // Вверху по центру — номер сертификата
+  cert_number:       { top: 33.1, left: 84.7,  width: 49.6,  height: 7,    fontSize: 12, textAlign: 'center' },
+
+  // Строка с датами — 6 маленьких блоков
+  date_start_day:    { top: 70.4, left: 56,     width: 10,    height: 6.8,  fontSize: 12, textAlign: 'center' },
+  date_start_month:  { top: 70.6, left: 68.8,   width: 29.8,  height: 6.5,  fontSize: 12, textAlign: 'center' },
+  date_start_year:   { top: 70.3, left: 103.3,  width: 11.3,  height: 7.1,  fontSize: 12, textAlign: 'center' },
+  date_end_day:      { top: 71.1, left: 133.6,  width: 10,    height: 6.8,  fontSize: 12, textAlign: 'center' },
+  date_end_month:    { top: 71.3, left: 146.5,  width: 28.8,  height: 6.5,  fontSize: 12, textAlign: 'center' },
+  date_end_year:     { top: 71.1, left: 180.3,  width: 8.6,   height: 7,    fontSize: 12, textAlign: 'center' },
+
+  // Орган по сертификации
+  cert_body_name:    { top: 81.4, left: 54.1,   width: 119.3, height: 5.9,  fontSize: 12, textAlign: 'center' },
+  cert_body_address: { top: 86.9, left: 53.8,   width: 119.6, height: 6,    fontSize: 12, textAlign: 'center' },
+  cert_body_number:  { top: 92.5, left: 78.7,   width: 70.7,  height: 6.3,  fontSize: 12, textAlign: 'center' },
+
+  // Продукция
+  products:          { top: 102.6,left: 41.5,   width: 132.4, height: 21.2, fontSize: 12, textAlign: 'center' },
+  quantity:          { top: 114.2,left: 81.1,   width: 25.5,  height: 8.4,  fontSize: 12, textAlign: 'center' },
+
+  // Нормативные документы
+  norm_documents:    { top: 126.9,left: 82.6,   width: 108.1, height: 13.6, fontSize: 12, textAlign: 'center' },
+
+  // Страна + Кому выдан
+  country:           { top: 157,  left: 80.6,   width: 89.9,  height: 6.3,  fontSize: 12, textAlign: 'center' },
+  issued_to_org:     { top: 176.3,left: 53,     width: 134.5, height: 7.1,  fontSize: 12, textAlign: 'center' },
+  issued_to_address: { top: 182.8,left: 53.3,   width: 134.4, height: 6.8,  fontSize: 12, textAlign: 'center' },
+
+  // На основании
+  basis_document:    { top: 195.7,left: 49.9,   width: 143.6, height: 20.2, fontSize: 12, textAlign: 'left' },
+
+  // Дополнительная информация
+  additional_info:   { top: 216.7,left: 49.8,   width: 137.1, height: 8.7,  fontSize: 12, textAlign: 'left' },
+
+  // ФИО внизу справа
+  head_name:         { top: 240.9,left: 138.3,  width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
+  dept_head_name:    { top: 258.1,left: 138.3,  width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  cert_body_number: 'Рег. номер',
+  cert_number: '№ сертификата',
+  cert_body_number: 'Орган: код/номер',
   date_start_day: 'Дата нач: день',
   date_start_month: 'Дата нач: месяц',
   date_start_year: 'Дата нач: год',
@@ -54,8 +71,6 @@ const FIELD_LABELS: Record<string, string> = {
   cert_body_address: 'Орган: адрес',
   products: 'Продукция',
   quantity: 'Количество',
-  code_num: 'Код НУМ',
-  code_nm: 'Код НМ',
   norm_documents: 'Норм. документы',
   country: 'Страна',
   issued_to_org: 'Кому выдан',
@@ -245,24 +260,6 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
         }}
         onClick={() => { if (calibrationMode) setSelected(null); }}
       >
-        {/* Blank certificate as background image */}
-        <img
-          src="/blank.png"
-          alt=""
-          draggable={false}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            pointerEvents: 'none',
-            opacity: calibrationMode ? 0.5 : 0.15,
-            userSelect: 'none',
-          }}
-          className="blank-bg"
-        />
-
         {/* Editable fields */}
         {Object.keys(layouts).map(field => {
           const layout = layouts[field];

@@ -106,7 +106,7 @@ export function formToRegistryRow(form: CertificateFormData) {
   const B = !isNaN(num) && num > 0 ? (num < 10 ? `0${num}` : `${num}`) : '';
   const issueDate = formatDateDDMMYY(form.date_start_day, form.date_start_month, form.date_start_year);
   const expiryDate = formatDateDDMMYY(form.date_end_day, form.date_end_month, form.date_end_year);
-  const H = [form.issued_to_org, form.issued_to_address].filter(Boolean).join(' ');
+  const H = [form.cert_body_name, form.cert_body_address].filter(Boolean).join(' ');
 
   return {
     A,
