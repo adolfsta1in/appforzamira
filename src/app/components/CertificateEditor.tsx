@@ -94,10 +94,18 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const STORAGE_KEY = 'cert_field_layouts';
+const LAYOUT_VERSION = '2'; // bump this whenever DEFAULT_LAYOUTS changes
+const LAYOUT_VERSION_KEY = 'cert_field_layouts_version';
 
 function loadLayouts(): AllFieldLayouts {
   if (typeof window === 'undefined') return DEFAULT_LAYOUTS;
   try {
+    // If layout version changed — reset to new defaults
+    if (localStorage.getItem(LAYOUT_VERSION_KEY) !== LAYOUT_VERSION) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(LAYOUT_VERSION_KEY, LAYOUT_VERSION);
+      return DEFAULT_LAYOUTS;
+    }
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
