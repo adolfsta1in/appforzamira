@@ -103,6 +103,15 @@ export default function AppendixPage() {
     setFiles(prev => prev.filter(f => f.id !== id));
   }, []);
 
+  const fileIcon = (name: string) => {
+    const ext = name.split('.').pop()?.toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls') return '📊 ';
+    if (ext === 'pdf') return '📄 ';
+    if (ext === 'doc' || ext === 'docx') return '📝 ';
+    if (['jpg','jpeg','png'].includes(ext || '')) return '🖼 ';
+    return '📎 ';
+  };
+
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -140,14 +149,14 @@ export default function AppendixPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
                 onChange={handleUpload}
                 disabled={uploading}
                 className="hidden"
               />
             </label>
 
-            <span className="text-xs text-gray-400">PDF, изображения, Word</span>
+            <span className="text-xs text-gray-400">PDF, Excel, Word, изображения</span>
           </div>
         </div>
 
@@ -199,7 +208,7 @@ export default function AppendixPage() {
                         onClick={() => openFile(file.storage_path)}
                         className="text-blue-600 hover:text-blue-800 hover:underline text-left"
                       >
-                        {file.original_name}
+                        {fileIcon(file.original_name)}{file.original_name}
                       </button>
                     </td>
                     <td className="px-4 py-3 text-gray-500">
