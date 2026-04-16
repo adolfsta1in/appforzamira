@@ -89,17 +89,17 @@ export default function PrintPreview({ formData, layout, showBlank }: PrintPrevi
       <FieldOnPage value={formData.cert_body_number} position={layout.certBodyNumber} />
 
       {/* Продукция + количество */}
-      <FieldOnPage
-        value={[formData.products, formData.quantity ? `ба миқдори ${formData.quantity}` : ''].filter(Boolean).join('\n')}
-        position={layout.products}
-      />
+      <FieldOnPage value={formData.products_1} position={layout.products} />
+      <FieldOnPage value={formData.products_2} position={{ ...layout.products, top: layout.products.top + 8 }} />
+      <FieldOnPage value={formData.products_3} position={{ ...layout.products, top: layout.products.top + 16 }} />
 
       {/* Коды */}
       <FieldOnPage value={formData.code_num} position={layout.codeNUM} />
       <FieldOnPage value={formData.code_nm} position={layout.codeNM} />
 
       {/* Нормативные документы */}
-      <FieldOnPage value={formData.norm_documents} position={layout.normDocs} />
+      <FieldOnPage value={formData.norm_documents_1} position={layout.normDocs} />
+      <FieldOnPage value={formData.norm_documents_2} position={{ ...layout.normDocs, top: layout.normDocs.top + 8 }} />
 
       {/* Страна */}
       <FieldOnPage value={formData.country} position={layout.country} />
