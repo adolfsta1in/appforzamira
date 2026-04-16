@@ -88,7 +88,6 @@ const FIELD_LABELS: Record<string, string> = {
   country: 'Страна',
   issued_to_org: 'Кому выдан',
   issued_to_address: 'Адрес',
-  basis_document: 'На основании',
   additional_info: 'Доп. инфо',
   head_name: 'ФИО рук.',
   dept_head_name: 'ФИО нач. отд.',
@@ -100,7 +99,15 @@ function loadLayouts(): AllFieldLayouts {
   if (typeof window === 'undefined') return DEFAULT_LAYOUTS;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return { ...DEFAULT_LAYOUTS, ...JSON.parse(saved) };
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Only keep keys that still exist in DEFAULT_LAYOUTS (removes deleted fields)
+      const filtered: AllFieldLayouts = {};
+      for (const key of Object.keys(DEFAULT_LAYOUTS)) {
+        filtered[key] = parsed[key] ?? DEFAULT_LAYOUTS[key];
+      }
+      return filtered;
+    }
   } catch {}
   return DEFAULT_LAYOUTS;
 }
