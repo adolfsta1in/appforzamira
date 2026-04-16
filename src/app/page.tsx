@@ -134,7 +134,7 @@ export default function Home() {
           country: formData.country,
           issued_to_org: formData.issued_to_org,
           issued_to_address: formData.issued_to_address,
-          basis_document: formData.basis_document,
+          basis_document: [formData.basis_document_1, formData.basis_document_2].filter(Boolean).join(' '),
           additional_info: formData.additional_info,
           head_name: formData.head_name,
           dept_head_name: formData.dept_head_name,
@@ -380,6 +380,16 @@ export default function Home() {
                     />
                   </SideField>
                 </div>
+
+                <SideField label="Количество">
+                  <input
+                    type="text"
+                    value={formData.quantity}
+                    onChange={e => updateField('quantity', e.target.value)}
+                    placeholder="1000кг, 200дона..."
+                    className="form-input"
+                  />
+                </SideField>
 
                 <SideField label="Испытаний">
                   <input

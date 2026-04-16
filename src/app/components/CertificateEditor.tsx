@@ -39,7 +39,6 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
   products_1:        { top: 103,   left: 41.5,  width: 123.4, height: 7,    fontSize: 12, textAlign: 'center' },
   products_2:        { top: 110.5, left: 41.5,  width: 123.4, height: 5.9,  fontSize: 12, textAlign: 'center' },
   products_3:        { top: 118,   left: 41.5,  width: 130,   height: 7,    fontSize: 12, textAlign: 'center' },
-  quantity:          { top: 117.6, left: 174.2, width: 25.5,  height: 8.4,  fontSize: 12, textAlign: 'center' },
 
   // Коды справа (вертикально, правая колонка)
   code_num:          { top: 96.4,  left: 167.6, width: 28,    height: 7,    fontSize: 8,  textAlign: 'center' },
@@ -54,8 +53,9 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
   issued_to_org:     { top: 176.3, left: 53,    width: 134.5, height: 7.1,  fontSize: 12, textAlign: 'center' },
   issued_to_address: { top: 182.8, left: 53.3,  width: 134.4, height: 6.8,  fontSize: 12, textAlign: 'center' },
 
-  // На основании
-  basis_document:    { top: 195.7, left: 49.9,  width: 143.6, height: 20.2, fontSize: 12, textAlign: 'left' },
+  // На основании — 2 строки
+  basis_document_1:  { top: 195.7, left: 49.9,  width: 143.6, height: 10,   fontSize: 12, textAlign: 'left' },
+  basis_document_2:  { top: 206.5, left: 49.9,  width: 143.6, height: 10,   fontSize: 12, textAlign: 'left' },
 
   // Дополнительная информация
   additional_info:   { top: 216.7, left: 49.8,  width: 137.1, height: 8.7,  fontSize: 12, textAlign: 'left' },
@@ -79,11 +79,12 @@ const FIELD_LABELS: Record<string, string> = {
   products_1: 'Продукция (стр. 1)',
   products_2: 'Продукция (стр. 2)',
   products_3: 'Продукция (стр. 3)',
-  quantity: 'Количество',
   code_num: 'Код НУМ/ОКП',
   code_nm: 'Код НМ ФИХ/ТН ВЭД',
   norm_documents_1: 'Норм. документы (стр. 1)',
   norm_documents_2: 'Норм. документы (стр. 2)',
+  basis_document_1: 'На основании (стр. 1)',
+  basis_document_2: 'На основании (стр. 2)',
   country: 'Страна',
   issued_to_org: 'Кому выдан',
   issued_to_address: 'Адрес',
@@ -249,7 +250,7 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
   }, [layouts]);
 
   const isMultiline = (field: string) =>
-    ['basis_document', 'additional_info'].includes(field);
+    ['basis_document_1', 'basis_document_2', 'additional_info'].includes(field);
 
   const isMonthSelect = (field: string) =>
     field === 'date_start_month' || field === 'date_end_month';

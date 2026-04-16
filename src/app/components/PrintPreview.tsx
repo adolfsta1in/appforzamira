@@ -109,7 +109,8 @@ export default function PrintPreview({ formData, layout, showBlank }: PrintPrevi
       <FieldOnPage value={formData.issued_to_address} position={layout.issuedToAddress} />
 
       {/* На основании */}
-      <FieldOnPage value={formData.basis_document} position={layout.basis} />
+      <FieldOnPage value={formData.basis_document_1} position={layout.basis} />
+      <FieldOnPage value={formData.basis_document_2} position={{ ...layout.basis, top: layout.basis.top + 11 }} />
 
       {/* Дополнительная информация */}
       <FieldOnPage value={formData.additional_info} position={layout.additionalInfo} />

@@ -23,7 +23,8 @@ export interface CertificateFormData {
   country: string;
   issued_to_org: string;
   issued_to_address: string;
-  basis_document: string;
+  basis_document_1: string;
+  basis_document_2: string;
   additional_info: string;
   head_name: string;
   dept_head_name: string;
@@ -62,7 +63,8 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   country: 'Ҷумҳурии Тоҷикистон',
   issued_to_org: '',
   issued_to_address: '',
-  basis_document: '',
+  basis_document_1: '',
+  basis_document_2: '',
   additional_info: '',
   head_name: '',
   dept_head_name: '',
@@ -129,7 +131,7 @@ export function formToRegistryRow(form: CertificateFormData) {
     L: form.cert_processing || '1',
     M: [form.products_1, form.products_2, form.products_3].filter(Boolean).join(' '),
     N: form.quantity,
-    O: form.basis_document,
+    O: [form.basis_document_1, form.basis_document_2].filter(Boolean).join(' '),
     P: form.country,
     Q: form.total_cost,
     R: form.amount_due,
