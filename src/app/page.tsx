@@ -14,14 +14,12 @@ import CertificateEditor from './components/CertificateEditor';
 import { supabase } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 
-// ─── Template storage ────────────────────────────────────────────────────────
-const TEMPLATES_KEY = 'cert_templates';
-
+// ─── Templates ───────────────────────────────────────────────────────────────
 interface CertTemplate {
   id: string;
   name: string;
   data: Partial<CertificateFormData>;
-  savedAt: string;
+  created_at: string;
 }
 
 // Fields unique per certificate — cleared when loading a template
@@ -32,16 +30,6 @@ const UNIQUE_FIELDS: (keyof CertificateFormData)[] = [
   'serial_number', 'copy_number',
   'invoice_number', 'invoice_date',
 ];
-
-function getTemplates(): CertTemplate[] {
-  if (typeof window === 'undefined') return [];
-  try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]'); }
-  catch { return []; }
-}
-
-function persistTemplates(list: CertTemplate[]) {
-  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list));
-}
 
 export default function Home() {
   const [formData, setFormData] = useState<CertificateFormData>(EMPTY_FORM_DATA);
@@ -59,8 +47,17 @@ export default function Home() {
   const [templates, setTemplates] = useState<CertTemplate[]>([]);
   const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [templateSaving, setTemplateSaving] = useState(false);
 
-  useEffect(() => { setTemplates(getTemplates()); }, []);
+  const loadTemplates = useCallback(async () => {
+    const { data } = await supabase
+      .from('templates')
+      .select('*')
+      .order('created_at', { ascending: false });
+    setTemplates((data || []) as CertTemplate[]);
+  }, []);
+
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
 
   const updateField = useCallback((key: keyof CertificateFormData, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -238,17 +235,17 @@ export default function Home() {
   }, []);
 
   // Save current form as template
-  const handleSaveTemplate = useCallback(() => {
+  const handleSaveTemplate = useCallback(async () => {
     const name = templateName.trim();
     if (!name) return;
+    setTemplateSaving(true);
     const templateData = { ...formData } as Partial<CertificateFormData>;
     UNIQUE_FIELDS.forEach(f => delete templateData[f]);
-    const t: CertTemplate = { id: Date.now().toString(), name, data: templateData, savedAt: new Date().toISOString() };
-    const updated = [t, ...getTemplates()];
-    persistTemplates(updated);
-    setTemplates(updated);
+    await supabase.from('templates').insert({ name, data: templateData });
+    await loadTemplates();
     setTemplateName('');
-  }, [formData, templateName]);
+    setTemplateSaving(false);
+  }, [formData, templateName, loadTemplates]);
 
   // Load template into form (clears unique fields)
   const handleLoadTemplate = useCallback((t: CertTemplate) => {
@@ -266,10 +263,9 @@ export default function Home() {
   }, []);
 
   // Delete template
-  const handleDeleteTemplate = useCallback((id: string) => {
-    const updated = getTemplates().filter(t => t.id !== id);
-    persistTemplates(updated);
-    setTemplates(updated);
+  const handleDeleteTemplate = useCallback(async (id: string) => {
+    await supabase.from('templates').delete().eq('id', id);
+    setTemplates(prev => prev.filter(t => t.id !== id));
   }, []);
 
   return (
@@ -375,10 +371,10 @@ export default function Home() {
                     />
                     <button
                       onClick={handleSaveTemplate}
-                      disabled={!templateName.trim()}
+                      disabled={!templateName.trim() || templateSaving}
                       className="px-3 py-1.5 bg-teal-600 text-white rounded text-xs font-medium disabled:opacity-40 hover:bg-teal-700"
                     >
-                      Сохранить
+                      {templateSaving ? '...' : 'Сохранить'}
                     </button>
                   </div>
                 </div>
