@@ -49,8 +49,8 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   date_end_day: '',
   date_end_month: '',
   date_end_year: '',
-  cert_body_name: '',
-  cert_body_address: '',
+  cert_body_name: 'Агентии Тоҷикстандарт',
+  cert_body_address: 'ш. Душанбе, кӯч. Н. Қарабоев 42/2',
   cert_body_number: '',
   products_1: '',
   products_2: '',
@@ -114,7 +114,7 @@ export function formToRegistryRow(form: CertificateFormData) {
   const B = !isNaN(num) && num > 0 ? (num < 10 ? `0${num}` : `${num}`) : '';
   const issueDate = formatDateDDMMYY(form.date_start_day, form.date_start_month, form.date_start_year);
   const expiryDate = formatDateDDMMYY(form.date_end_day, form.date_end_month, form.date_end_year);
-  const H = [form.cert_body_name, form.cert_body_address].filter(Boolean).join(' ');
+  const H = [form.issued_to_org, form.issued_to_address].filter(Boolean).join(' ');
 
   return {
     A,
