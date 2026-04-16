@@ -7,7 +7,9 @@
       "Bash(where node:*)",
       "Bash(cmd.exe /c \"where npx\")",
       "Bash(cmd.exe /c \"where npm\")",
-      "Bash(cmd.exe /c \"npx --version\")"
+      "Bash(cmd.exe /c \"npx --version\")",
+      "mcp__7c260e55-8abc-4895-9da2-952c7c45222a__list_projects",
+      "mcp__7c260e55-8abc-4895-9da2-952c7c45222a__get_publishable_keys"
     ]
   }
 }
