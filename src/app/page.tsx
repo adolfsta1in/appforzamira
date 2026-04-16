@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   CertificateFormData,
   EMPTY_FORM_DATA,
@@ -13,6 +13,35 @@ import {
 import CertificateEditor from './components/CertificateEditor';
 import { supabase } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
+
+// ─── Template storage ────────────────────────────────────────────────────────
+const TEMPLATES_KEY = 'cert_templates';
+
+interface CertTemplate {
+  id: string;
+  name: string;
+  data: Partial<CertificateFormData>;
+  savedAt: string;
+}
+
+// Fields unique per certificate — cleared when loading a template
+const UNIQUE_FIELDS: (keyof CertificateFormData)[] = [
+  'cert_number',
+  'date_start_day', 'date_start_month', 'date_start_year',
+  'date_end_day', 'date_end_month', 'date_end_year',
+  'serial_number', 'copy_number',
+  'invoice_number', 'invoice_date',
+];
+
+function getTemplates(): CertTemplate[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function persistTemplates(list: CertTemplate[]) {
+  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list));
+}
 
 export default function Home() {
   const [formData, setFormData] = useState<CertificateFormData>(EMPTY_FORM_DATA);
@@ -25,6 +54,14 @@ export default function Home() {
   const [calibrationMode, setCalibrationMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentPdfFileRef = useRef<File | null>(null);
+
+  // Templates
+  const [templates, setTemplates] = useState<CertTemplate[]>([]);
+  const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+
+  useEffect(() => { setTemplates(getTemplates()); }, []);
 
   const updateField = useCallback((key: keyof CertificateFormData, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -201,9 +238,45 @@ export default function Home() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
 
+  // Save current form as template
+  const handleSaveTemplate = useCallback(() => {
+    const name = templateName.trim();
+    if (!name) return;
+    const templateData = { ...formData } as Partial<CertificateFormData>;
+    UNIQUE_FIELDS.forEach(f => delete templateData[f]);
+    const t: CertTemplate = { id: Date.now().toString(), name, data: templateData, savedAt: new Date().toISOString() };
+    const updated = [t, ...getTemplates()];
+    persistTemplates(updated);
+    setTemplates(updated);
+    setTemplateName('');
+    setShowSaveTemplate(false);
+  }, [formData, templateName]);
+
+  // Load template into form (clears unique fields)
+  const handleLoadTemplate = useCallback((t: CertTemplate) => {
+    setFormData({
+      ...EMPTY_FORM_DATA,
+      ...t.data,
+      cert_number: '',
+      date_start_day: '', date_start_month: '', date_start_year: '',
+      date_end_day: '', date_end_month: '', date_end_year: '',
+      serial_number: '', copy_number: '',
+      invoice_number: '', invoice_date: '',
+    });
+    setShowTemplatesPanel(false);
+    setError(null);
+  }, []);
+
+  // Delete template
+  const handleDeleteTemplate = useCallback((id: string) => {
+    const updated = getTemplates().filter(t => t.id !== id);
+    persistTemplates(updated);
+    setTemplates(updated);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="max-w-[1200px] mx-auto p-4">
+    <div className="min-h-screen bg-gray-50" onClick={() => { if (showTemplatesPanel) setShowTemplatesPanel(false); }}>
+      <main className="max-w-[1200px] mx-auto p-4" onClick={e => e.stopPropagation()}>
         {/* Top toolbar */}
         <div className="flex flex-wrap items-center gap-3 mb-4 no-print">
           <button
@@ -255,6 +328,65 @@ export default function Home() {
           >
             Очистить
           </button>
+
+          {/* Template buttons */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowTemplatesPanel(v => !v); setShowSaveTemplate(false); }}
+              className="px-5 py-2.5 rounded-lg font-medium bg-teal-600 text-white hover:bg-teal-700 transition-colors text-sm"
+            >
+              Шаблоны {templates.length > 0 && `(${templates.length})`}
+            </button>
+            {showTemplatesPanel && (
+              <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-72">
+                <div className="p-3 border-b">
+                  <p className="text-xs text-gray-500 mb-2">Загрузить шаблон — заполнит форму без уникальных полей</p>
+                  {templates.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">Шаблонов нет. Сохраните первый.</p>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {templates.map(t => (
+                        <div key={t.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-gray-50">
+                          <button
+                            onClick={() => handleLoadTemplate(t)}
+                            className="text-sm text-left text-gray-800 hover:text-teal-700 font-medium flex-1 truncate"
+                          >
+                            {t.name}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTemplate(t.id)}
+                            className="text-red-400 hover:text-red-600 text-xs flex-shrink-0"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <p className="text-xs font-medium text-gray-600 mb-2">Сохранить текущие данные как шаблон:</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={templateName}
+                      onChange={e => setTemplateName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveTemplate()}
+                      placeholder="Название (напр. ООО Далери)"
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-teal-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={handleSaveTemplate}
+                      disabled={!templateName.trim()}
+                      className="px-3 py-1.5 bg-teal-600 text-white rounded text-xs font-medium disabled:opacity-40 hover:bg-teal-700"
+                    >
+                      Сохранить
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="ml-auto flex items-center gap-4">
             <button
