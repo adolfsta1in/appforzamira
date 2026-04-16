@@ -36,33 +36,33 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
   cert_body_number:  { top: 92.5, left: 78.7,   width: 70.7,  height: 6.3,  fontSize: 12, textAlign: 'center' },
 
   // Продукция — 3 строки
-  products_1:        { top: 103,  left: 41.5,   width: 130,   height: 7,    fontSize: 12, textAlign: 'center' },
-  products_2:        { top: 110.5,left: 41.5,   width: 130,   height: 7,    fontSize: 12, textAlign: 'center' },
-  products_3:        { top: 118,  left: 41.5,   width: 130,   height: 7,    fontSize: 12, textAlign: 'center' },
-  quantity:          { top: 114.2,left: 81.1,   width: 25.5,  height: 8.4,  fontSize: 12, textAlign: 'center' },
+  products_1:        { top: 103,   left: 41.5,  width: 123.4, height: 7,    fontSize: 12, textAlign: 'center' },
+  products_2:        { top: 110.5, left: 41.5,  width: 123.4, height: 5.9,  fontSize: 12, textAlign: 'center' },
+  products_3:        { top: 118,   left: 41.5,  width: 130,   height: 7,    fontSize: 12, textAlign: 'center' },
+  quantity:          { top: 117.6, left: 174.2, width: 25.5,  height: 8.4,  fontSize: 12, textAlign: 'center' },
 
-  // Коды справа от продукции
-  code_num:          { top: 103,  left: 174,    width: 28,    height: 7,    fontSize: 8,  textAlign: 'center' },
-  code_nm:           { top: 111,  left: 174,    width: 28,    height: 7,    fontSize: 8,  textAlign: 'center' },
+  // Коды справа (вертикально, правая колонка)
+  code_num:          { top: 96.4,  left: 167.6, width: 28,    height: 7,    fontSize: 8,  textAlign: 'center' },
+  code_nm:           { top: 108.1, left: 167.9, width: 28,    height: 7,    fontSize: 8,  textAlign: 'center' },
 
   // Нормативные документы — 2 строки
-  norm_documents_1:  { top: 127,  left: 41.5,   width: 155,   height: 7,    fontSize: 12, textAlign: 'center' },
-  norm_documents_2:  { top: 135,  left: 41.5,   width: 155,   height: 7,    fontSize: 12, textAlign: 'center' },
+  norm_documents_1:  { top: 127.3, left: 93.4,  width: 111.1, height: 7,    fontSize: 12, textAlign: 'center' },
+  norm_documents_2:  { top: 134.7, left: 93.1,  width: 111.3, height: 7,    fontSize: 12, textAlign: 'center' },
 
   // Страна + Кому выдан
-  country:           { top: 157,  left: 80.6,   width: 89.9,  height: 6.3,  fontSize: 12, textAlign: 'center' },
-  issued_to_org:     { top: 176.3,left: 53,     width: 134.5, height: 7.1,  fontSize: 12, textAlign: 'center' },
-  issued_to_address: { top: 182.8,left: 53.3,   width: 134.4, height: 6.8,  fontSize: 12, textAlign: 'center' },
+  country:           { top: 157,   left: 80.6,  width: 89.9,  height: 6.3,  fontSize: 12, textAlign: 'center' },
+  issued_to_org:     { top: 176.3, left: 53,    width: 134.5, height: 7.1,  fontSize: 12, textAlign: 'center' },
+  issued_to_address: { top: 182.8, left: 53.3,  width: 134.4, height: 6.8,  fontSize: 12, textAlign: 'center' },
 
   // На основании
-  basis_document:    { top: 195.7,left: 49.9,   width: 143.6, height: 20.2, fontSize: 12, textAlign: 'left' },
+  basis_document:    { top: 195.7, left: 49.9,  width: 143.6, height: 20.2, fontSize: 12, textAlign: 'left' },
 
   // Дополнительная информация
-  additional_info:   { top: 216.7,left: 49.8,   width: 137.1, height: 8.7,  fontSize: 12, textAlign: 'left' },
+  additional_info:   { top: 216.7, left: 49.8,  width: 137.1, height: 8.7,  fontSize: 12, textAlign: 'left' },
 
   // ФИО внизу справа
-  head_name:         { top: 240.9,left: 138.3,  width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
-  dept_head_name:    { top: 258.1,left: 138.3,  width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
+  head_name:         { top: 240.9, left: 138.3, width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
+  dept_head_name:    { top: 258.1, left: 138.3, width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
 };
 
 const FIELD_LABELS: Record<string, string> = {
