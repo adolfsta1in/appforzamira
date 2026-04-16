@@ -59,7 +59,6 @@ export default function Home() {
   const [templates, setTemplates] = useState<CertTemplate[]>([]);
   const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
   const [templateName, setTemplateName] = useState('');
-  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
   useEffect(() => { setTemplates(getTemplates()); }, []);
 
@@ -249,7 +248,6 @@ export default function Home() {
     persistTemplates(updated);
     setTemplates(updated);
     setTemplateName('');
-    setShowSaveTemplate(false);
   }, [formData, templateName]);
 
   // Load template into form (clears unique fields)
