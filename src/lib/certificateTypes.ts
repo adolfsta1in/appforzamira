@@ -60,7 +60,7 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   code_nm: '',
   norm_documents_1: '',
   norm_documents_2: '',
-  country: 'Ҷумҳурии Тоҷикистон',
+  country: '',
   issued_to_org: '',
   issued_to_address: '',
   basis_document_1: '',
