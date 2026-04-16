@@ -12,11 +12,14 @@ export interface CertificateFormData {
   cert_body_name: string;
   cert_body_address: string;
   cert_body_number: string;
-  products: string;
+  products_1: string;
+  products_2: string;
+  products_3: string;
   quantity: string;
   code_num: string;
   code_nm: string;
-  norm_documents: string;
+  norm_documents_1: string;
+  norm_documents_2: string;
   country: string;
   issued_to_org: string;
   issued_to_address: string;
@@ -48,11 +51,14 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   cert_body_name: '',
   cert_body_address: '',
   cert_body_number: '',
-  products: '',
+  products_1: '',
+  products_2: '',
+  products_3: '',
   quantity: '',
   code_num: '',
   code_nm: '',
-  norm_documents: '',
+  norm_documents_1: '',
+  norm_documents_2: '',
   country: 'Ҷумҳурии Тоҷикистон',
   issued_to_org: '',
   issued_to_address: '',
@@ -121,7 +127,7 @@ export function formToRegistryRow(form: CertificateFormData) {
     J: '',
     K: '',
     L: form.cert_processing || '1',
-    M: form.products,
+    M: [form.products_1, form.products_2, form.products_3].filter(Boolean).join(' '),
     N: form.quantity,
     O: form.basis_document,
     P: form.country,

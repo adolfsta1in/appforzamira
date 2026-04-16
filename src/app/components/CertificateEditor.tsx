@@ -35,12 +35,19 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
   cert_body_address: { top: 86.9, left: 53.8,   width: 119.6, height: 6,    fontSize: 12, textAlign: 'center' },
   cert_body_number:  { top: 92.5, left: 78.7,   width: 70.7,  height: 6.3,  fontSize: 12, textAlign: 'center' },
 
-  // Продукция
-  products:          { top: 102.6,left: 41.5,   width: 132.4, height: 21.2, fontSize: 12, textAlign: 'center' },
+  // Продукция — 3 строки
+  products_1:        { top: 103,  left: 41.5,   width: 130,   height: 7,    fontSize: 12, textAlign: 'center' },
+  products_2:        { top: 110.5,left: 41.5,   width: 130,   height: 7,    fontSize: 12, textAlign: 'center' },
+  products_3:        { top: 118,  left: 41.5,   width: 130,   height: 7,    fontSize: 12, textAlign: 'center' },
   quantity:          { top: 114.2,left: 81.1,   width: 25.5,  height: 8.4,  fontSize: 12, textAlign: 'center' },
 
-  // Нормативные документы
-  norm_documents:    { top: 126.9,left: 82.6,   width: 108.1, height: 13.6, fontSize: 12, textAlign: 'center' },
+  // Коды справа от продукции
+  code_num:          { top: 103,  left: 174,    width: 28,    height: 7,    fontSize: 8,  textAlign: 'center' },
+  code_nm:           { top: 111,  left: 174,    width: 28,    height: 7,    fontSize: 8,  textAlign: 'center' },
+
+  // Нормативные документы — 2 строки
+  norm_documents_1:  { top: 127,  left: 41.5,   width: 155,   height: 7,    fontSize: 12, textAlign: 'center' },
+  norm_documents_2:  { top: 135,  left: 41.5,   width: 155,   height: 7,    fontSize: 12, textAlign: 'center' },
 
   // Страна + Кому выдан
   country:           { top: 157,  left: 80.6,   width: 89.9,  height: 6.3,  fontSize: 12, textAlign: 'center' },
@@ -69,9 +76,14 @@ const FIELD_LABELS: Record<string, string> = {
   date_end_year: 'Дата ок: год',
   cert_body_name: 'Орган: название',
   cert_body_address: 'Орган: адрес',
-  products: 'Продукция',
+  products_1: 'Продукция (стр. 1)',
+  products_2: 'Продукция (стр. 2)',
+  products_3: 'Продукция (стр. 3)',
   quantity: 'Количество',
-  norm_documents: 'Норм. документы',
+  code_num: 'Код НУМ/ОКП',
+  code_nm: 'Код НМ ФИХ/ТН ВЭД',
+  norm_documents_1: 'Норм. документы (стр. 1)',
+  norm_documents_2: 'Норм. документы (стр. 2)',
   country: 'Страна',
   issued_to_org: 'Кому выдан',
   issued_to_address: 'Адрес',
@@ -237,7 +249,7 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
   }, [layouts]);
 
   const isMultiline = (field: string) =>
-    ['products', 'norm_documents', 'basis_document', 'additional_info'].includes(field);
+    ['basis_document', 'additional_info'].includes(field);
 
   const isMonthSelect = (field: string) =>
     field === 'date_start_month' || field === 'date_end_month';
