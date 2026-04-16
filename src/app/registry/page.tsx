@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS } from '@/lib/certificateTypes';
 import { supabase } from '@/lib/supabase';
