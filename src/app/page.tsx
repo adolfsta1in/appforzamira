@@ -330,7 +330,7 @@ export default function Home() {
           {/* Template buttons */}
           <div className="relative">
             <button
-              onClick={() => { setShowTemplatesPanel(v => !v); setShowSaveTemplate(false); }}
+              onClick={() => setShowTemplatesPanel(v => !v)}
               className="px-5 py-2.5 rounded-lg font-medium bg-teal-600 text-white hover:bg-teal-700 transition-colors text-sm"
             >
               Шаблоны {templates.length > 0 && `(${templates.length})`}
