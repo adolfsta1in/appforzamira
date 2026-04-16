@@ -54,11 +54,11 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
   issued_to_address: { top: 182.8, left: 53.3,  width: 134.4, height: 6.8,  fontSize: 12, textAlign: 'center' },
 
   // На основании — 2 строки
-  basis_document_1:  { top: 195.7, left: 49.9,  width: 143.6, height: 10,   fontSize: 12, textAlign: 'left' },
-  basis_document_2:  { top: 206.5, left: 49.9,  width: 143.6, height: 10,   fontSize: 12, textAlign: 'left' },
+  basis_document_1:  { top: 195.7, left: 49.9,  width: 145.7, height: 8.4,  fontSize: 12, textAlign: 'left' },
+  basis_document_2:  { top: 204.1, left: 49.1,  width: 146.8, height: 7.4,  fontSize: 12, textAlign: 'left' },
 
   // Дополнительная информация
-  additional_info:   { top: 216.7, left: 49.8,  width: 137.1, height: 8.7,  fontSize: 12, textAlign: 'left' },
+  additional_info:   { top: 212.2, left: 49.3,  width: 137.1, height: 8.7,  fontSize: 12, textAlign: 'left' },
 
   // ФИО внизу справа
   head_name:         { top: 240.9, left: 138.3, width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
