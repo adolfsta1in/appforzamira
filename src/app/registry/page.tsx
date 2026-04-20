@@ -189,6 +189,7 @@ export default function RegistryPage() {
                   {certs.map((cert, idx) => {
                     const row = formToRegistryRow({
                       cert_number: cert.cert_number,
+                      cert_number_on_blank: '',
                       date_start_day: cert.date_start_day,
                       date_start_month: cert.date_start_month,
                       date_start_year: cert.date_start_year,
