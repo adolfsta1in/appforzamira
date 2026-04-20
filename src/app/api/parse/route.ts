@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
     // Build form data from parsed response
     const data = {
       cert_number: parsed.cert_number || '',
+      cert_number_on_blank: parsed.cert_number || '',
       date_start_day: parsed.issue_day || '',
       date_start_month: parsed.issue_month_name || '',
       date_start_year: parsed.issue_year || '',

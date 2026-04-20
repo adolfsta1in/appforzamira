@@ -3,6 +3,7 @@
 export interface CertificateFormData {
   // Certificate fields (printed on blank)
   cert_number: string;
+  cert_number_on_blank: string;
   date_start_day: string;
   date_start_month: string;
   date_start_year: string;
@@ -43,6 +44,7 @@ export interface CertificateFormData {
 
 export const EMPTY_FORM_DATA: CertificateFormData = {
   cert_number: '',
+  cert_number_on_blank: '',
   date_start_day: '',
   date_start_month: '',
   date_start_year: '',

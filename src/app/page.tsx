@@ -25,6 +25,7 @@ interface CertTemplate {
 // Fields unique per certificate — cleared when loading a template
 const UNIQUE_FIELDS: (keyof CertificateFormData)[] = [
   'cert_number',
+  'cert_number_on_blank',
   'date_start_day', 'date_start_month', 'date_start_year',
   'date_end_day', 'date_end_month', 'date_end_year',
   'serial_number', 'copy_number',
@@ -253,6 +254,7 @@ export default function Home() {
       ...EMPTY_FORM_DATA,
       ...t.data,
       cert_number: '',
+      cert_number_on_blank: '',
       date_start_day: '', date_start_month: '', date_start_year: '',
       date_end_day: '', date_end_month: '', date_end_year: '',
       serial_number: '', copy_number: '',

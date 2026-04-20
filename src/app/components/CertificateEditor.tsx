@@ -19,6 +19,9 @@ export interface AllFieldLayouts {
 
 // Initial approximate positions (user will drag to correct positions)
 const DEFAULT_LAYOUTS: AllFieldLayouts = {
+  // Номер сертификата на бланке — независимое поле (не связано с № в реестре)
+  cert_number_on_blank: { top: 33.1, left: 84.7, width: 49.6, height: 7,   fontSize: 12, textAlign: 'center' },
+
   // Строка с датами — 6 маленьких блоков
   date_start_day:    { top: 70.4, left: 56,     width: 10,    height: 6.8,  fontSize: 12, textAlign: 'center' },
   date_start_month:  { top: 70.6, left: 68.8,   width: 29.8,  height: 6.5,  fontSize: 12, textAlign: 'center' },
@@ -63,6 +66,7 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
+  cert_number_on_blank: '№ сертификата (на бланке)',
   cert_body_number: 'Орган: код/номер',
   date_start_day: 'Дата нач: день',
   date_start_month: 'Дата нач: месяц',
@@ -90,7 +94,7 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const STORAGE_KEY = 'cert_field_layouts';
-const LAYOUT_VERSION = '2'; // bump this whenever DEFAULT_LAYOUTS changes
+const LAYOUT_VERSION = '3'; // bump this whenever DEFAULT_LAYOUTS changes
 const LAYOUT_VERSION_KEY = 'cert_field_layouts_version';
 
 function loadLayouts(): AllFieldLayouts {
