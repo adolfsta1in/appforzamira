@@ -19,9 +19,6 @@ export interface AllFieldLayouts {
 
 // Initial approximate positions (user will drag to correct positions)
 const DEFAULT_LAYOUTS: AllFieldLayouts = {
-  // Вверху по центру — номер сертификата
-  cert_number:       { top: 33.1, left: 84.7,  width: 49.6,  height: 7,    fontSize: 12, textAlign: 'center' },
-
   // Строка с датами — 6 маленьких блоков
   date_start_day:    { top: 70.4, left: 56,     width: 10,    height: 6.8,  fontSize: 12, textAlign: 'center' },
   date_start_month:  { top: 70.6, left: 68.8,   width: 29.8,  height: 6.5,  fontSize: 12, textAlign: 'center' },
@@ -66,7 +63,6 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  cert_number: '№ сертификата',
   cert_body_number: 'Орган: код/номер',
   date_start_day: 'Дата нач: день',
   date_start_month: 'Дата нач: месяц',
