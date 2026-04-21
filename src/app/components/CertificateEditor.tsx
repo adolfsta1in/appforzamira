@@ -124,9 +124,21 @@ function saveLayouts(layouts: AllFieldLayouts) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(layouts));
 }
 
+type ArrayFieldKey = 'products' | 'basis_documents';
+
+// Layout keys that render a specific index of an array field
+const ARRAY_LAYOUT_MAP: Record<string, { key: ArrayFieldKey; index: number }> = {
+  products_1: { key: 'products', index: 0 },
+  products_2: { key: 'products', index: 1 },
+  products_3: { key: 'products', index: 2 },
+  basis_document_1: { key: 'basis_documents', index: 0 },
+  basis_document_2: { key: 'basis_documents', index: 1 },
+};
+
 interface CertificateEditorProps {
   formData: CertificateFormData;
   onFieldChange: (key: keyof CertificateFormData, value: string) => void;
+  onArrayFieldChange: (key: ArrayFieldKey, index: number, value: string) => void;
   calibrationMode: boolean;
 }
 
@@ -134,7 +146,7 @@ interface CertificateEditorProps {
 // 1mm = 3.7795px at 96dpi, but we use mm units directly in CSS
 // The A4 div is 210mm x 297mm
 
-export default function CertificateEditor({ formData, onFieldChange, calibrationMode }: CertificateEditorProps) {
+export default function CertificateEditor({ formData, onFieldChange, onArrayFieldChange, calibrationMode }: CertificateEditorProps) {
   const [layouts, setLayouts] = useState<AllFieldLayouts>(DEFAULT_LAYOUTS);
   const [selected, setSelected] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ field: string; startX: number; startY: number; origLeft: number; origTop: number } | null>(null);
@@ -291,8 +303,15 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
         {/* Editable fields */}
         {Object.keys(layouts).map(field => {
           const layout = layouts[field];
+          const arrayMapping = ARRAY_LAYOUT_MAP[field];
           const fieldKey = field as keyof CertificateFormData;
-          const value = formData[fieldKey] || '';
+          const value = arrayMapping
+            ? (formData[arrayMapping.key][arrayMapping.index] || '')
+            : ((formData[fieldKey] as string | undefined) || '');
+          const handleValueChange = (v: string) => {
+            if (arrayMapping) onArrayFieldChange(arrayMapping.key, arrayMapping.index, v);
+            else onFieldChange(fieldKey, v);
+          };
           const isSelected = calibrationMode && selected === field;
 
           const isNameField = field === 'head_name' || field === 'dept_head_name';
@@ -346,7 +365,7 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
               {isMonthSelect(field) ? (
                 <select
                   value={value}
-                  onChange={e => onFieldChange(fieldKey, e.target.value)}
+                  onChange={e => handleValueChange(e.target.value)}
                   onMouseDown={e => { if (calibrationMode) { handleMouseDown(e, field, 'drag'); } }}
                   style={{
                     ...baseStyle,
@@ -366,7 +385,7 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
               ) : isMultiline(field) ? (
                 <textarea
                   value={value}
-                  onChange={e => onFieldChange(fieldKey, e.target.value)}
+                  onChange={e => handleValueChange(e.target.value)}
                   onMouseDown={e => { if (calibrationMode) handleMouseDown(e, field, 'drag'); }}
                   placeholder={calibrationMode ? FIELD_LABELS[field] : ''}
                   style={{ ...baseStyle, position: 'relative', top: 0, left: 0 }}
@@ -376,7 +395,7 @@ export default function CertificateEditor({ formData, onFieldChange, calibration
                 <input
                   type="text"
                   value={value}
-                  onChange={e => onFieldChange(fieldKey, e.target.value)}
+                  onChange={e => handleValueChange(e.target.value)}
                   onMouseDown={e => { if (calibrationMode) handleMouseDown(e, field, 'drag'); }}
                   placeholder={calibrationMode ? FIELD_LABELS[field] : ''}
                   style={{ ...baseStyle, position: 'relative', top: 0, left: 0 }}

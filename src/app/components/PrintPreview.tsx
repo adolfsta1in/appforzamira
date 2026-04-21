@@ -89,9 +89,9 @@ export default function PrintPreview({ formData, layout, showBlank }: PrintPrevi
       <FieldOnPage value={formData.cert_body_number} position={layout.certBodyNumber} />
 
       {/* Продукция + количество */}
-      <FieldOnPage value={formData.products_1} position={layout.products} />
-      <FieldOnPage value={formData.products_2} position={{ ...layout.products, top: layout.products.top + 8 }} />
-      <FieldOnPage value={formData.products_3} position={{ ...layout.products, top: layout.products.top + 16 }} />
+      <FieldOnPage value={formData.products[0] || ''} position={layout.products} />
+      <FieldOnPage value={formData.products[1] || ''} position={{ ...layout.products, top: layout.products.top + 8 }} />
+      <FieldOnPage value={formData.products[2] || ''} position={{ ...layout.products, top: layout.products.top + 16 }} />
 
       {/* Коды */}
       <FieldOnPage value={formData.code_num} position={layout.codeNUM} />
@@ -109,8 +109,8 @@ export default function PrintPreview({ formData, layout, showBlank }: PrintPrevi
       <FieldOnPage value={formData.issued_to_address} position={layout.issuedToAddress} />
 
       {/* На основании */}
-      <FieldOnPage value={formData.basis_document_1} position={layout.basis} />
-      <FieldOnPage value={formData.basis_document_2} position={{ ...layout.basis, top: layout.basis.top + 11 }} />
+      <FieldOnPage value={formData.basis_documents[0] || ''} position={layout.basis} />
+      <FieldOnPage value={formData.basis_documents[1] || ''} position={{ ...layout.basis, top: layout.basis.top + 11 }} />
 
       {/* Дополнительная информация */}
       <FieldOnPage value={formData.additional_info} position={layout.additionalInfo} />

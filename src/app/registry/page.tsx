@@ -21,6 +21,7 @@ interface CertRow {
   cert_body_number: string;
   products: string;
   quantity: string;
+  quantity_unit: string | null;
   code_num: string;
   code_nm: string;
   norm_documents: string;
@@ -199,10 +200,9 @@ export default function RegistryPage() {
                       cert_body_name: cert.cert_body_name,
                       cert_body_address: cert.cert_body_address,
                       cert_body_number: cert.cert_body_number,
-                      products_1: cert.products,
-                      products_2: '',
-                      products_3: '',
+                      products: [cert.products],
                       quantity: cert.quantity,
+                      quantity_unit: cert.quantity_unit || '',
                       code_num: cert.code_num,
                       code_nm: cert.code_nm,
                       norm_documents_1: cert.norm_documents,
@@ -210,8 +210,7 @@ export default function RegistryPage() {
                       country: cert.country,
                       issued_to_org: cert.issued_to_org,
                       issued_to_address: cert.issued_to_address,
-                      basis_document_1: cert.basis_document,
-                      basis_document_2: '',
+                      basis_documents: [cert.basis_document],
                       additional_info: cert.additional_info,
                       head_name: cert.head_name,
                       dept_head_name: cert.dept_head_name,

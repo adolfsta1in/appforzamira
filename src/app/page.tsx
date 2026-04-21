@@ -32,8 +32,47 @@ const UNIQUE_FIELDS: (keyof CertificateFormData)[] = [
   'invoice_number', 'invoice_date',
 ];
 
+// localStorage key + version for form draft autosave
+const FORM_DRAFT_KEY = 'cert_form_draft';
+const FORM_DRAFT_VERSION = '1';
+
+function loadDraft(): CertificateFormData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(FORM_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== FORM_DRAFT_VERSION) return null;
+    const data = parsed.data;
+    if (!data || typeof data !== 'object') return null;
+    // Merge with EMPTY_FORM_DATA so new fields get defaults
+    return {
+      ...EMPTY_FORM_DATA,
+      ...data,
+      products: Array.isArray(data.products) && data.products.length > 0
+        ? data.products
+        : EMPTY_FORM_DATA.products,
+      basis_documents: Array.isArray(data.basis_documents) && data.basis_documents.length > 0
+        ? data.basis_documents
+        : EMPTY_FORM_DATA.basis_documents,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(data: CertificateFormData) {
+  try {
+    localStorage.setItem(
+      FORM_DRAFT_KEY,
+      JSON.stringify({ version: FORM_DRAFT_VERSION, data }),
+    );
+  } catch {}
+}
+
 export default function Home() {
   const [formData, setFormData] = useState<CertificateFormData>(EMPTY_FORM_DATA);
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const [, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,14 +80,30 @@ export default function Home() {
   const [saved, setSaved] = useState(false);
   const [showRegistry, setShowRegistry] = useState(false);
   const [calibrationMode, setCalibrationMode] = useState(false);
+  const [autoQuantityLoading, setAutoQuantityLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentPdfFileRef = useRef<File | null>(null);
+  const userEditedQuantityRef = useRef(false);
 
   // Templates
   const [templates, setTemplates] = useState<CertTemplate[]>([]);
   const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateSaving, setTemplateSaving] = useState(false);
+
+  // Load draft from localStorage on mount (client-only to avoid SSR hydration issues)
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft) setFormData(draft);
+    setDraftLoaded(true);
+  }, []);
+
+  // Autosave form draft on any change (debounced)
+  useEffect(() => {
+    if (!draftLoaded) return;
+    const t = setTimeout(() => saveDraft(formData), 300);
+    return () => clearTimeout(t);
+  }, [formData, draftLoaded]);
 
   const loadTemplates = useCallback(async () => {
     const { data } = await supabase
@@ -61,8 +116,67 @@ export default function Home() {
   useEffect(() => { loadTemplates(); }, [loadTemplates]);
 
   const updateField = useCallback((key: keyof CertificateFormData, value: string) => {
+    if (key === 'quantity' || key === 'quantity_unit') {
+      userEditedQuantityRef.current = true;
+    }
     setFormData(prev => ({ ...prev, [key]: value }));
   }, []);
+
+  const updateArrayField = useCallback(
+    (key: 'products' | 'basis_documents', index: number, value: string) => {
+      setFormData(prev => {
+        const arr = [...prev[key]];
+        arr[index] = value;
+        return { ...prev, [key]: arr };
+      });
+    },
+    [],
+  );
+
+  const addArrayRow = useCallback((key: 'products' | 'basis_documents') => {
+    setFormData(prev => ({ ...prev, [key]: [...prev[key], ''] }));
+    // Adding a product row means new data coming — let auto-quantity recompute
+    if (key === 'products') userEditedQuantityRef.current = false;
+  }, []);
+
+  const removeArrayRow = useCallback((key: 'products' | 'basis_documents', index: number) => {
+    setFormData(prev => {
+      if (prev[key].length <= 1) return prev;
+      return { ...prev, [key]: prev[key].filter((_, i) => i !== index) };
+    });
+  }, []);
+
+  // Auto-compute quantity from products via DeepSeek (debounced)
+  useEffect(() => {
+    if (!draftLoaded) return;
+    if (userEditedQuantityRef.current) return;
+    const joined = formData.products.filter(Boolean).join(' | ').trim();
+    if (!joined) return;
+
+    const t = setTimeout(async () => {
+      setAutoQuantityLoading(true);
+      try {
+        const res = await fetch('/api/parse-quantity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ products: formData.products.filter(Boolean) }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if ((json.quantity || json.unit) && !userEditedQuantityRef.current) {
+            setFormData(prev => ({
+              ...prev,
+              quantity: json.quantity || prev.quantity,
+              quantity_unit: json.unit || prev.quantity_unit,
+            }));
+          }
+        }
+      } catch {}
+      setAutoQuantityLoading(false);
+    }, 1500);
+
+    return () => clearTimeout(t);
+  }, [formData.products, draftLoaded]);
 
   // PDF upload handler
   const handleFile = useCallback(async (file: File) => {
@@ -89,6 +203,8 @@ export default function Home() {
       if (!res.ok) {
         setError(json.error || 'Ошибка при обработке PDF');
       } else {
+        // PDF parsed quantity — treat as auto-filled, allow auto effect to overwrite later
+        userEditedQuantityRef.current = false;
         setFormData(prev => ({ ...prev, ...json.data }));
       }
     } catch {
@@ -160,15 +276,16 @@ export default function Home() {
           cert_body_name: formData.cert_body_name,
           cert_body_address: formData.cert_body_address,
           cert_body_number: formData.cert_body_number,
-          products: [formData.products_1, formData.products_2, formData.products_3].filter(Boolean).join(' '),
+          products: formData.products.filter(Boolean).join(' '),
           quantity: formData.quantity,
+          quantity_unit: formData.quantity_unit,
           code_num: formData.code_num,
           code_nm: formData.code_nm,
           norm_documents: [formData.norm_documents_1, formData.norm_documents_2].filter(Boolean).join(' '),
           country: formData.country,
           issued_to_org: formData.issued_to_org,
           issued_to_address: formData.issued_to_address,
-          basis_document: [formData.basis_document_1, formData.basis_document_2].filter(Boolean).join(' '),
+          basis_document: formData.basis_documents.filter(Boolean).join(' '),
           additional_info: formData.additional_info,
           head_name: formData.head_name,
           dept_head_name: formData.dept_head_name,
@@ -203,13 +320,14 @@ export default function Home() {
     const values = ALL_COLUMNS.map(col => row[col as keyof typeof row] || '');
     const ws = XLSX.utils.aoa_to_sheet([headers, values]);
 
+    // "Оформление сертификата" header spans I-L (indices 8..11)
     if (!ws['!merges']) ws['!merges'] = [];
     ws['!merges'].push({ s: { r: 0, c: 8 }, e: { r: 0, c: 11 } });
     ws['I1'] = { v: 'Оформление сертификата', t: 's' };
 
     ws['!cols'] = ALL_COLUMNS.map(col => {
       if (['I', 'J', 'K', 'D'].includes(col)) return { wch: 5 };
-      if (['A', 'B', 'L'].includes(col)) return { wch: 6 };
+      if (['A', 'B', 'L', 'N1'].includes(col)) return { wch: 6 };
       if (['H', 'M', 'O'].includes(col)) return { wch: 35 };
       return { wch: 15 };
     });
@@ -231,7 +349,9 @@ export default function Home() {
     setError(null);
     setCopied(false);
     setSaved(false);
+    userEditedQuantityRef.current = false;
     currentPdfFileRef.current = null;
+    try { localStorage.removeItem(FORM_DRAFT_KEY); } catch {}
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
 
@@ -250,9 +370,16 @@ export default function Home() {
 
   // Load template into form (clears unique fields)
   const handleLoadTemplate = useCallback((t: CertTemplate) => {
+    const tData = t.data || {};
     setFormData({
       ...EMPTY_FORM_DATA,
-      ...t.data,
+      ...tData,
+      products: Array.isArray(tData.products) && tData.products.length > 0
+        ? tData.products
+        : EMPTY_FORM_DATA.products,
+      basis_documents: Array.isArray(tData.basis_documents) && tData.basis_documents.length > 0
+        ? tData.basis_documents
+        : EMPTY_FORM_DATA.basis_documents,
       cert_number: '',
       cert_number_on_blank: '',
       date_start_day: '', date_start_month: '', date_start_year: '',
@@ -260,6 +387,7 @@ export default function Home() {
       serial_number: '', copy_number: '',
       invoice_number: '', invoice_date: '',
     });
+    userEditedQuantityRef.current = false;
     setShowTemplatesPanel(false);
     setError(null);
   }, []);
@@ -429,6 +557,7 @@ export default function Home() {
               <CertificateEditor
                 formData={formData}
                 onFieldChange={updateField}
+                onArrayFieldChange={updateArrayField}
                 calibrationMode={calibrationMode}
               />
             </div>
@@ -509,15 +638,112 @@ export default function Home() {
                   </SideField>
                 </div>
 
-                <SideField label="Количество">
-                  <input
-                    type="text"
-                    value={formData.quantity}
-                    onChange={e => updateField('quantity', e.target.value)}
-                    placeholder="1000кг, 200дона..."
-                    className="form-input"
-                  />
-                </SideField>
+                {/* Продукция — массив */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Продукция
+                  </label>
+                  <div className="space-y-1">
+                    {formData.products.map((p, i) => (
+                      <div key={i} className="flex gap-1">
+                        <input
+                          type="text"
+                          value={p}
+                          onChange={e => updateArrayField('products', i, e.target.value)}
+                          placeholder={i === 0 ? 'Наименование…' : 'Доп. строка'}
+                          className="form-input flex-1"
+                        />
+                        {formData.products.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeArrayRow('products', i)}
+                            className="px-2 text-gray-400 hover:text-red-500 text-sm"
+                            title="Удалить строку"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => addArrayRow('products')}
+                    className="mt-1 text-xs text-teal-600 hover:text-teal-700 font-medium"
+                  >
+                    + Добавить строку
+                  </button>
+                </div>
+
+                {/* Количество + единица измерения */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Количество
+                    {autoQuantityLoading && (
+                      <span className="ml-2 text-[10px] text-gray-400 font-normal">
+                        считаю…
+                      </span>
+                    )}
+                    {userEditedQuantityRef.current && !autoQuantityLoading && (
+                      <span className="ml-2 text-[10px] text-amber-500 font-normal">
+                        ручной ввод
+                      </span>
+                    )}
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.quantity}
+                      onChange={e => updateField('quantity', e.target.value)}
+                      placeholder="1000"
+                      className="form-input flex-1"
+                    />
+                    <input
+                      type="text"
+                      value={formData.quantity_unit}
+                      onChange={e => updateField('quantity_unit', e.target.value)}
+                      placeholder="кг"
+                      className="form-input w-20"
+                    />
+                  </div>
+                </div>
+
+                {/* На основании — массив */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    На основании
+                  </label>
+                  <div className="space-y-1">
+                    {formData.basis_documents.map((b, i) => (
+                      <div key={i} className="flex gap-1">
+                        <input
+                          type="text"
+                          value={b}
+                          onChange={e => updateArrayField('basis_documents', i, e.target.value)}
+                          placeholder={i === 0 ? 'Протокол…' : 'Доп. строка'}
+                          className="form-input flex-1"
+                        />
+                        {formData.basis_documents.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeArrayRow('basis_documents', i)}
+                            className="px-2 text-gray-400 hover:text-red-500 text-sm"
+                            title="Удалить строку"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => addArrayRow('basis_documents')}
+                    className="mt-1 text-xs text-teal-600 hover:text-teal-700 font-medium"
+                  >
+                    + Добавить строку
+                  </button>
+                </div>
 
                 <SideField label="Испытаний">
                   <input
@@ -582,9 +808,9 @@ export default function Home() {
                       <td
                         key={col}
                         className="px-2 py-2 border border-gray-300 text-center text-xs max-w-[200px] truncate"
-                        title={row[col as keyof typeof row] || ''}
+                        title={row[col as keyof typeof row] || ' '}
                       >
-                        {row[col as keyof typeof row] || '\u00A0'}
+                        {row[col as keyof typeof row] || ' '}
                       </td>
                     ));
                   })()}

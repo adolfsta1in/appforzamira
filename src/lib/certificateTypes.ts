@@ -13,10 +13,9 @@ export interface CertificateFormData {
   cert_body_name: string;
   cert_body_address: string;
   cert_body_number: string;
-  products_1: string;
-  products_2: string;
-  products_3: string;
+  products: string[];
   quantity: string;
+  quantity_unit: string;
   code_num: string;
   code_nm: string;
   norm_documents_1: string;
@@ -24,8 +23,7 @@ export interface CertificateFormData {
   country: string;
   issued_to_org: string;
   issued_to_address: string;
-  basis_document_1: string;
-  basis_document_2: string;
+  basis_documents: string[];
   additional_info: string;
   head_name: string;
   dept_head_name: string;
@@ -54,10 +52,9 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   cert_body_name: 'Агентии Тоҷикстандарт',
   cert_body_address: 'ш. Душанбе, кӯч. Н. Қарабоев 42/2',
   cert_body_number: '',
-  products_1: '',
-  products_2: '',
-  products_3: '',
+  products: ['', '', ''],
   quantity: '',
+  quantity_unit: '',
   code_num: '',
   code_nm: '',
   norm_documents_1: '',
@@ -65,8 +62,7 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   country: '',
   issued_to_org: '',
   issued_to_address: '',
-  basis_document_1: '',
-  basis_document_2: '',
+  basis_documents: ['', ''],
   additional_info: '',
   head_name: '',
   dept_head_name: '',
@@ -109,7 +105,9 @@ export function formatDateDDMMYY(day: string, month: string, year: string): stri
   return `${dd}.${mm}.${year}`;
 }
 
-// Map form data → A-V columns for Excel copy/export
+// Map form data → columns for Excel copy/export
+// N1 is a new column inserted between N (quantity) and O (basis documents);
+// using string key 'N1' keeps downstream O..V code unchanged while shifting the visual column in Excel.
 export function formToRegistryRow(form: CertificateFormData) {
   const A = form.serial_number;
   const num = parseInt(A);
@@ -131,9 +129,10 @@ export function formToRegistryRow(form: CertificateFormData) {
     J: '',
     K: '',
     L: form.cert_processing || '1',
-    M: [form.products_1, form.products_2, form.products_3].filter(Boolean).join(' '),
+    M: form.products.filter(Boolean).join(' '),
     N: form.quantity,
-    O: [form.basis_document_1, form.basis_document_2].filter(Boolean).join(' '),
+    N1: form.quantity_unit,
+    O: form.basis_documents.filter(Boolean).join(' '),
     P: form.country,
     Q: form.total_cost,
     R: form.amount_due,
@@ -159,6 +158,7 @@ export const COLUMN_LABELS: Record<string, string> = {
   L: 'Оформл. 4',
   M: 'Наименование продукции',
   N: 'Кол-во',
+  N1: 'Ед. изм.',
   O: 'На основании документа',
   P: 'Страна',
   Q: 'Стоимость (сомони)',
@@ -169,4 +169,4 @@ export const COLUMN_LABELS: Record<string, string> = {
   V: 'ИНН',
 };
 
-export const ALL_COLUMNS = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V'] as const;
+export const ALL_COLUMNS = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','N1','O','P','Q','R','S','T','U','V'] as const;

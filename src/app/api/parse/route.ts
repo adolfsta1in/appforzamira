@@ -32,7 +32,8 @@ const SYSTEM_PROMPT = `Ты — парсер сертификатов соотв
   "cert_body_address": "адрес органа",
   "cert_body_number": "регистрационный номер органа",
   "products": "наименование продукции (БЕЗ количества)",
-  "quantity": "количество (напр. '1000кг', '200дона')",
+  "quantity_value": "число количества БЕЗ единицы (напр. '1000', '200')",
+  "quantity_unit": "единица измерения (напр. 'кг', 'дона', 'л', 'шт')",
   "code_num": "код НУМ/ОКП или пустая строка",
   "code_nm": "код НМ ФИХ/ТН ВЭД или пустая строка",
   "norm_documents": "нормативные документы (все стандарты)",
@@ -105,6 +106,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If model returned legacy "quantity" (e.g. "1000кг"), split it
+    let qValue = String(parsed.quantity_value ?? '').trim();
+    let qUnit = String(parsed.quantity_unit ?? '').trim();
+    if (!qValue && !qUnit && parsed.quantity) {
+      const m = String(parsed.quantity).trim().match(/^([\d.,]+)\s*(.*)$/);
+      if (m) {
+        qValue = m[1];
+        qUnit = m[2].trim();
+      }
+    }
+
     // Build form data from parsed response
     const data = {
       cert_number: parsed.cert_number || '',
@@ -118,10 +130,9 @@ export async function POST(request: NextRequest) {
       cert_body_name: parsed.cert_body_name || '',
       cert_body_address: parsed.cert_body_address || '',
       cert_body_number: parsed.cert_body_number || '',
-      products_1: parsed.products || '',
-      products_2: '',
-      products_3: '',
-      quantity: parsed.quantity || '',
+      products: [parsed.products || '', '', ''],
+      quantity: qValue,
+      quantity_unit: qUnit,
       code_num: parsed.code_num || '',
       code_nm: parsed.code_nm || '',
       norm_documents_1: parsed.norm_documents || '',
@@ -129,8 +140,7 @@ export async function POST(request: NextRequest) {
       country: parsed.country || '',
       issued_to_org: parsed.issued_to_org || '',
       issued_to_address: parsed.issued_to_address || '',
-      basis_document_1: parsed.basis_document || '',
-      basis_document_2: '',
+      basis_documents: [parsed.basis_document || '', ''],
       additional_info: parsed.additional_info || '',
       head_name: parsed.head_name || '',
       dept_head_name: parsed.dept_head_name || '',
