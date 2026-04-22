@@ -93,6 +93,7 @@ export default function Home() {
   const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState('');
 
   // Load draft from localStorage on mount (client-only to avoid SSR hydration issues)
   useEffect(() => {
@@ -398,6 +399,7 @@ export default function Home() {
     });
     userEditedQuantityRef.current = false;
     setShowTemplatesPanel(false);
+    setTemplateSearch('');
     setError(null);
   }, []);
 
@@ -476,26 +478,58 @@ export default function Home() {
                   <p className="text-xs text-gray-500 mb-2">Загрузить шаблон — заполнит форму без уникальных полей</p>
                   {templates.length === 0 ? (
                     <p className="text-xs text-gray-400 italic">Шаблонов нет. Сохраните первый.</p>
-                  ) : (
-                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {templates.map(t => (
-                        <div key={t.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-gray-50">
-                          <button
-                            onClick={() => handleLoadTemplate(t)}
-                            className="text-sm text-left text-gray-800 hover:text-teal-700 font-medium flex-1 truncate"
-                          >
-                            {t.name}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTemplate(t.id)}
-                            className="text-red-400 hover:text-red-600 text-xs flex-shrink-0"
-                          >
-                            ✕
-                          </button>
+                  ) : (() => {
+                    const q = templateSearch.trim().toLowerCase();
+                    const filtered = q
+                      ? templates.filter(t => t.name.toLowerCase().includes(q))
+                      : templates;
+                    return (
+                      <>
+                        <div className="relative mb-2">
+                          <input
+                            type="text"
+                            value={templateSearch}
+                            onChange={e => setTemplateSearch(e.target.value)}
+                            placeholder="Поиск…"
+                            autoFocus
+                            className="w-full px-2 py-1.5 pr-6 border border-gray-300 rounded text-xs focus:border-teal-500 focus:outline-none"
+                          />
+                          {templateSearch && (
+                            <button
+                              onClick={() => setTemplateSearch('')}
+                              className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs w-4 h-4 flex items-center justify-center"
+                              title="Очистить"
+                              type="button"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        {filtered.length === 0 ? (
+                          <p className="text-xs text-gray-400 italic">Ничего не найдено</p>
+                        ) : (
+                          <div className="space-y-1 max-h-64 overflow-y-auto">
+                            {filtered.map(t => (
+                              <div key={t.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-gray-50">
+                                <button
+                                  onClick={() => handleLoadTemplate(t)}
+                                  className="text-sm text-left text-gray-800 hover:text-teal-700 font-medium flex-1 truncate"
+                                >
+                                  {t.name}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTemplate(t.id)}
+                                  className="text-red-400 hover:text-red-600 text-xs flex-shrink-0"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
                 <div className="p-3">
                   <p className="text-xs font-medium text-gray-600 mb-2">Сохранить текущие данные как шаблон:</p>
