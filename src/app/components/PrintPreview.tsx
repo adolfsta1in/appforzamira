@@ -113,7 +113,7 @@ export default function PrintPreview({ formData, layout, showBlank }: PrintPrevi
       <FieldOnPage value={formData.basis_documents[1] || ''} position={{ ...layout.basis, top: layout.basis.top + 11 }} />
 
       {/* Дополнительная информация */}
-      <FieldOnPage value={formData.additional_info} position={layout.additionalInfo} />
+      <FieldOnPage value={formData.additional_info.filter(Boolean).join(' ')} position={layout.additionalInfo} />
 
       {/* ФИО */}
       <FieldOnPage value={formData.head_name} position={layout.headName} />

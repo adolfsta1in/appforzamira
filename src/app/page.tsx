@@ -55,6 +55,9 @@ function loadDraft(): CertificateFormData | null {
       basis_documents: Array.isArray(data.basis_documents) && data.basis_documents.length > 0
         ? data.basis_documents
         : EMPTY_FORM_DATA.basis_documents,
+      additional_info: Array.isArray(data.additional_info)
+        ? (data.additional_info.length > 0 ? data.additional_info : [''])
+        : [typeof data.additional_info === 'string' ? data.additional_info : ''],
     };
   } catch {
     return null;
@@ -123,7 +126,7 @@ export default function Home() {
   }, []);
 
   const updateArrayField = useCallback(
-    (key: 'products' | 'basis_documents', index: number, value: string) => {
+    (key: 'products' | 'basis_documents' | 'additional_info', index: number, value: string) => {
       setFormData(prev => {
         const arr = [...prev[key]];
         arr[index] = value;
@@ -133,18 +136,21 @@ export default function Home() {
     [],
   );
 
-  const addArrayRow = useCallback((key: 'products' | 'basis_documents') => {
+  const addArrayRow = useCallback((key: 'products' | 'basis_documents' | 'additional_info') => {
     setFormData(prev => ({ ...prev, [key]: [...prev[key], ''] }));
     // Adding a product row means new data coming — let auto-quantity recompute
     if (key === 'products') userEditedQuantityRef.current = false;
   }, []);
 
-  const removeArrayRow = useCallback((key: 'products' | 'basis_documents', index: number) => {
-    setFormData(prev => {
-      if (prev[key].length <= 1) return prev;
-      return { ...prev, [key]: prev[key].filter((_, i) => i !== index) };
-    });
-  }, []);
+  const removeArrayRow = useCallback(
+    (key: 'products' | 'basis_documents' | 'additional_info', index: number) => {
+      setFormData(prev => {
+        if (prev[key].length <= 1) return prev;
+        return { ...prev, [key]: prev[key].filter((_, i) => i !== index) };
+      });
+    },
+    [],
+  );
 
   // Auto-compute quantity from products via DeepSeek (debounced)
   useEffect(() => {
@@ -286,7 +292,7 @@ export default function Home() {
           issued_to_org: formData.issued_to_org,
           issued_to_address: formData.issued_to_address,
           basis_document: formData.basis_documents.filter(Boolean).join(' '),
-          additional_info: formData.additional_info,
+          additional_info: formData.additional_info.filter(Boolean).join(' '),
           head_name: formData.head_name,
           dept_head_name: formData.dept_head_name,
           serial_number: formData.serial_number,
@@ -380,6 +386,9 @@ export default function Home() {
       basis_documents: Array.isArray(tData.basis_documents) && tData.basis_documents.length > 0
         ? tData.basis_documents
         : EMPTY_FORM_DATA.basis_documents,
+      additional_info: Array.isArray(tData.additional_info)
+        ? (tData.additional_info.length > 0 ? tData.additional_info : [''])
+        : [typeof tData.additional_info === 'string' ? tData.additional_info : ''],
       cert_number: '',
       cert_number_on_blank: '',
       date_start_day: '', date_start_month: '', date_start_year: '',
@@ -558,6 +567,8 @@ export default function Home() {
                 formData={formData}
                 onFieldChange={updateField}
                 onArrayFieldChange={updateArrayField}
+                onAddArrayRow={addArrayRow}
+                onRemoveArrayRow={removeArrayRow}
                 calibrationMode={calibrationMode}
               />
             </div>
@@ -636,43 +647,6 @@ export default function Home() {
                       className="form-input"
                     />
                   </SideField>
-                </div>
-
-                {/* Продукция — массив */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Продукция
-                  </label>
-                  <div className="space-y-1">
-                    {formData.products.map((p, i) => (
-                      <div key={i} className="flex gap-1">
-                        <input
-                          type="text"
-                          value={p}
-                          onChange={e => updateArrayField('products', i, e.target.value)}
-                          placeholder={i === 0 ? 'Наименование…' : 'Доп. строка'}
-                          className="form-input flex-1"
-                        />
-                        {formData.products.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeArrayRow('products', i)}
-                            className="px-2 text-gray-400 hover:text-red-500 text-sm"
-                            title="Удалить строку"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => addArrayRow('products')}
-                    className="mt-1 text-xs text-teal-600 hover:text-teal-700 font-medium"
-                  >
-                    + Добавить строку
-                  </button>
                 </div>
 
                 {/* Количество + единица измерения */}

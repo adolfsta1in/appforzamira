@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       issued_to_org: parsed.issued_to_org || '',
       issued_to_address: parsed.issued_to_address || '',
       basis_documents: [parsed.basis_document || '', ''],
-      additional_info: parsed.additional_info || '',
+      additional_info: [parsed.additional_info || ''],
       head_name: parsed.head_name || '',
       dept_head_name: parsed.dept_head_name || '',
       // Registry fields — not parsed from PDF

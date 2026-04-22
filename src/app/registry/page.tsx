@@ -211,7 +211,7 @@ export default function RegistryPage() {
                       issued_to_org: cert.issued_to_org,
                       issued_to_address: cert.issued_to_address,
                       basis_documents: [cert.basis_document],
-                      additional_info: cert.additional_info,
+                      additional_info: [cert.additional_info],
                       head_name: cert.head_name,
                       dept_head_name: cert.dept_head_name,
                       serial_number: cert.serial_number,

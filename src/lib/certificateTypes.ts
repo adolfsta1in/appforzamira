@@ -24,7 +24,7 @@ export interface CertificateFormData {
   issued_to_org: string;
   issued_to_address: string;
   basis_documents: string[];
-  additional_info: string;
+  additional_info: string[];
   head_name: string;
   dept_head_name: string;
 
@@ -63,7 +63,7 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   issued_to_org: '',
   issued_to_address: '',
   basis_documents: ['', ''],
-  additional_info: '',
+  additional_info: [''],
   head_name: '',
   dept_head_name: '',
   serial_number: '',

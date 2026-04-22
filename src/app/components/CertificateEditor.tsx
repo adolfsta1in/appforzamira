@@ -57,8 +57,8 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
   basis_document_1:  { top: 195.7, left: 49.9,  width: 145.7, height: 8.4,  fontSize: 12, textAlign: 'left' },
   basis_document_2:  { top: 204.1, left: 49.1,  width: 146.8, height: 7.4,  fontSize: 12, textAlign: 'left' },
 
-  // Дополнительная информация
-  additional_info:   { top: 212.2, left: 49.3,  width: 137.1, height: 8.7,  fontSize: 12, textAlign: 'left' },
+  // Дополнительная информация — первая строка (остальные строятся на её основе)
+  additional_info_1: { top: 212.2, left: 49.3,  width: 137.1, height: 8.7,  fontSize: 12, textAlign: 'left' },
 
   // ФИО внизу справа
   head_name:         { top: 240.9, left: 138.3, width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
@@ -88,13 +88,13 @@ const FIELD_LABELS: Record<string, string> = {
   country: 'Страна',
   issued_to_org: 'Кому выдан',
   issued_to_address: 'Адрес',
-  additional_info: 'Доп. инфо',
+  additional_info_1: 'Доп. инфо',
   head_name: 'ФИО рук.',
   dept_head_name: 'ФИО нач. отд.',
 };
 
 const STORAGE_KEY = 'cert_field_layouts';
-const LAYOUT_VERSION = '3'; // bump this whenever DEFAULT_LAYOUTS changes
+const LAYOUT_VERSION = '4'; // bump this whenever DEFAULT_LAYOUTS changes
 const LAYOUT_VERSION_KEY = 'cert_field_layouts_version';
 
 function loadLayouts(): AllFieldLayouts {
@@ -124,21 +124,32 @@ function saveLayouts(layouts: AllFieldLayouts) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(layouts));
 }
 
-type ArrayFieldKey = 'products' | 'basis_documents';
+type ArrayFieldKey = 'products' | 'basis_documents' | 'additional_info';
 
-// Layout keys that render a specific index of an array field
+// Layout keys that render a specific index of an array field.
+// Products and additional_info can grow beyond these base keys via the "+" button on the blank —
+// extra rows reuse the last base layout, shifted down by its height.
 const ARRAY_LAYOUT_MAP: Record<string, { key: ArrayFieldKey; index: number }> = {
   products_1: { key: 'products', index: 0 },
   products_2: { key: 'products', index: 1 },
   products_3: { key: 'products', index: 2 },
   basis_document_1: { key: 'basis_documents', index: 0 },
   basis_document_2: { key: 'basis_documents', index: 1 },
+  additional_info_1: { key: 'additional_info', index: 0 },
 };
+
+// For "+" button on the blank: which base layout the extras stack below, and starting index in the array.
+const EXTENDABLE_FIELDS: { baseLayoutKey: string; arrayKey: ArrayFieldKey; startIndex: number; label: string }[] = [
+  { baseLayoutKey: 'products_3',       arrayKey: 'products',        startIndex: 3, label: 'Продукция' },
+  { baseLayoutKey: 'additional_info_1', arrayKey: 'additional_info', startIndex: 1, label: 'Доп. инфо' },
+];
 
 interface CertificateEditorProps {
   formData: CertificateFormData;
   onFieldChange: (key: keyof CertificateFormData, value: string) => void;
   onArrayFieldChange: (key: ArrayFieldKey, index: number, value: string) => void;
+  onAddArrayRow: (key: ArrayFieldKey) => void;
+  onRemoveArrayRow: (key: ArrayFieldKey, index: number) => void;
   calibrationMode: boolean;
 }
 
@@ -146,7 +157,7 @@ interface CertificateEditorProps {
 // 1mm = 3.7795px at 96dpi, but we use mm units directly in CSS
 // The A4 div is 210mm x 297mm
 
-export default function CertificateEditor({ formData, onFieldChange, onArrayFieldChange, calibrationMode }: CertificateEditorProps) {
+export default function CertificateEditor({ formData, onFieldChange, onArrayFieldChange, onAddArrayRow, onRemoveArrayRow, calibrationMode }: CertificateEditorProps) {
   const [layouts, setLayouts] = useState<AllFieldLayouts>(DEFAULT_LAYOUTS);
   const [selected, setSelected] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ field: string; startX: number; startY: number; origLeft: number; origTop: number } | null>(null);
@@ -277,7 +288,8 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
   }, [layouts]);
 
   const isMultiline = (field: string) =>
-    ['basis_document_1', 'basis_document_2', 'additional_info'].includes(field);
+    ['basis_document_1', 'basis_document_2', 'additional_info_1'].includes(field) ||
+    field.startsWith('extra_additional_info_');
 
   const isMonthSelect = (field: string) =>
     field === 'date_start_month' || field === 'date_end_month';
@@ -417,6 +429,132 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                     background: isSelected ? '#2E7D32' : 'rgba(46,125,50,0.3)',
                   }}
                 />
+              )}
+            </div>
+          );
+        })}
+
+        {/* Extra rows added via the "+" button on the blank (products beyond row 3, additional_info beyond row 1).
+            These reuse the base layout, stacked below. Not draggable in calibration mode. */}
+        {EXTENDABLE_FIELDS.map(({ baseLayoutKey, arrayKey, startIndex, label }) => {
+          const base = layouts[baseLayoutKey];
+          if (!base) return null;
+          const array = formData[arrayKey];
+          const extraCount = Math.max(0, array.length - startIndex);
+          const multiline = isMultiline(baseLayoutKey);
+
+          const extraBaseStyle = (extraIdx: number): React.CSSProperties => ({
+            position: 'absolute',
+            top: `${base.top + base.height * (extraIdx + 1)}mm`,
+            left: `${base.left}mm`,
+            width: `${base.width}mm`,
+            height: `${base.height}mm`,
+            fontSize: `${base.fontSize}pt`,
+            textAlign: base.textAlign,
+            fontFamily: "'Times New Roman', serif",
+            fontWeight: 'bold',
+            fontStyle: 'italic',
+            color: '#000',
+            background: 'transparent',
+            border: '1px dashed rgba(46, 125, 50, 0.15)',
+            outline: 'none',
+            padding: '0 1px',
+            margin: 0,
+            lineHeight: '1.3',
+            resize: 'none',
+            overflow: 'hidden',
+            cursor: 'text',
+            boxSizing: 'border-box',
+          });
+
+          // Position of the "+" button: hanging off the right side of the last visible row
+          // (base row if no extras, otherwise the last extra).
+          const plusTop = base.top + base.height * extraCount;
+          const plusLeft = base.left + base.width;
+
+          return (
+            <div key={`extra-${arrayKey}`}>
+              {Array.from({ length: extraCount }).map((_, i) => {
+                const arrIdx = startIndex + i;
+                const value = array[arrIdx] || '';
+                const fieldId = `extra_${arrayKey}_${i}`;
+                const style = extraBaseStyle(i);
+                return (
+                  <div key={fieldId}>
+                    {multiline ? (
+                      <textarea
+                        value={value}
+                        onChange={e => onArrayFieldChange(arrayKey, arrIdx, e.target.value)}
+                        style={style}
+                        className="cert-field"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={e => onArrayFieldChange(arrayKey, arrIdx, e.target.value)}
+                        style={style}
+                        className="cert-field"
+                      />
+                    )}
+                    {/* Remove button for this extra row (screen only) */}
+                    {!calibrationMode && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveArrayRow(arrayKey, arrIdx)}
+                        title={`Удалить строку ${arrIdx + 1}`}
+                        className="no-print"
+                        style={{
+                          position: 'absolute',
+                          top: `${base.top + base.height * (i + 1) + base.height / 2 - 3}mm`,
+                          left: `${base.left - 6}mm`,
+                          width: '5mm',
+                          height: '5mm',
+                          padding: 0,
+                          border: 'none',
+                          borderRadius: '50%',
+                          background: '#d32f2f',
+                          color: '#fff',
+                          fontSize: '10pt',
+                          fontWeight: 'bold',
+                          lineHeight: '5mm',
+                          cursor: 'pointer',
+                          fontFamily: 'Arial, sans-serif',
+                        }}
+                      >
+                        −
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              {/* Add button (screen only) */}
+              {!calibrationMode && (
+                <button
+                  type="button"
+                  onClick={() => onAddArrayRow(arrayKey)}
+                  title={`Добавить строку: ${label}`}
+                  className="no-print"
+                  style={{
+                    position: 'absolute',
+                    top: `${plusTop + base.height / 2 - 3}mm`,
+                    left: `${plusLeft + 1}mm`,
+                    width: '5mm',
+                    height: '5mm',
+                    padding: 0,
+                    border: 'none',
+                    borderRadius: '50%',
+                    background: '#2E7D32',
+                    color: '#fff',
+                    fontSize: '10pt',
+                    fontWeight: 'bold',
+                    lineHeight: '5mm',
+                    cursor: 'pointer',
+                    fontFamily: 'Arial, sans-serif',
+                  }}
+                >
+                  +
+                </button>
               )}
             </div>
           );
