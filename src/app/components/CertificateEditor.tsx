@@ -25,10 +25,10 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
 
   // Строка с датами — 6 маленьких блоков
   date_start_day:    { top: 70.4, left: 56,     width: 10,    height: 6.8,  fontSize: 12, textAlign: 'center' },
-  date_start_month:  { top: 70.6, left: 68.8,   width: 29.8,  height: 6.5,  fontSize: 12, textAlign: 'center' },
-  date_start_year:   { top: 70.3, left: 103.3,  width: 11.3,  height: 7.1,  fontSize: 12, textAlign: 'center' },
+  date_start_month:  { top: 70.4, left: 68.8,   width: 29.8,  height: 6.5,  fontSize: 12, textAlign: 'center' },
+  date_start_year:   { top: 70.4, left: 103.3,  width: 11.3,  height: 7.1,  fontSize: 12, textAlign: 'center' },
   date_end_day:      { top: 71.1, left: 133.6,  width: 10,    height: 6.8,  fontSize: 12, textAlign: 'center' },
-  date_end_month:    { top: 71.3, left: 146.5,  width: 28.8,  height: 6.5,  fontSize: 12, textAlign: 'center' },
+  date_end_month:    { top: 71.1, left: 146.5,  width: 28.8,  height: 6.5,  fontSize: 12, textAlign: 'center' },
   date_end_year:     { top: 71.1, left: 180.3,  width: 8.6,   height: 7,    fontSize: 12, textAlign: 'center' },
 
   // Орган по сертификации
@@ -94,8 +94,17 @@ const FIELD_LABELS: Record<string, string> = {
   dept_head_name: 'ФИО нач. отд.',
 };
 
+const DATE_GROUPS: Record<string, string[]> = {
+  date_start_day: ['date_start_day', 'date_start_month', 'date_start_year'],
+  date_start_month: ['date_start_day', 'date_start_month', 'date_start_year'],
+  date_start_year: ['date_start_day', 'date_start_month', 'date_start_year'],
+  date_end_day: ['date_end_day', 'date_end_month', 'date_end_year'],
+  date_end_month: ['date_end_day', 'date_end_month', 'date_end_year'],
+  date_end_year: ['date_end_day', 'date_end_month', 'date_end_year'],
+};
+
 const STORAGE_KEY = 'cert_field_layouts';
-const LAYOUT_VERSION = '5'; // bump this whenever DEFAULT_LAYOUTS changes
+const LAYOUT_VERSION = '6'; // bump this whenever DEFAULT_LAYOUTS changes
 const LAYOUT_VERSION_KEY = 'cert_field_layouts_version';
 const ACTIVE_PRESET_KEY = 'cert_active_preset_id'; // which preset this device uses
 
@@ -184,7 +193,7 @@ interface CertificateEditorProps {
 export default function CertificateEditor({ formData, onFieldChange, onArrayFieldChange, onAddArrayRow, onRemoveArrayRow, calibrationMode }: CertificateEditorProps) {
   const [layouts, setLayouts] = useState<AllFieldLayouts>(DEFAULT_LAYOUTS);
   const [selected, setSelected] = useState<string | null>(null);
-  const [dragging, setDragging] = useState<{ field: string; startX: number; startY: number; origLeft: number; origTop: number } | null>(null);
+  const [dragging, setDragging] = useState<{ field: string; startX: number; startY: number; origLeft: number; origTop: number; origLayouts: AllFieldLayouts } | null>(null);
   const [resizing, setResizing] = useState<{ field: string; startX: number; startY: number; origW: number; origH: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -369,7 +378,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
     setSelected(field);
     const layout = layouts[field];
     if (action === 'drag') {
-      setDragging({ field, startX: e.clientX, startY: e.clientY, origLeft: layout.left, origTop: layout.top });
+      setDragging({ field, startX: e.clientX, startY: e.clientY, origLeft: layout.left, origTop: layout.top, origLayouts: layouts });
     } else {
       setResizing({ field, startX: e.clientX, startY: e.clientY, origW: layout.width, origH: layout.height });
     }
@@ -383,14 +392,31 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
       if (dragging) {
         const dx = (e.clientX - dragging.startX) * ratio.x;
         const dy = (e.clientY - dragging.startY) * ratio.y;
-        setLayouts(prev => ({
-          ...prev,
-          [dragging.field]: {
-            ...prev[dragging.field],
-            left: Math.round((dragging.origLeft + dx) * 10) / 10,
-            top: Math.round((dragging.origTop + dy) * 10) / 10,
+        
+        const group = DATE_GROUPS[dragging.field];
+        
+        setLayouts(prev => {
+          if (group) {
+            const newLayouts = { ...prev };
+            group.forEach(f => {
+              newLayouts[f] = {
+                ...prev[f],
+                left: Math.round((dragging.origLayouts[f].left + dx) * 10) / 10,
+                top: Math.round((dragging.origLayouts[f].top + dy) * 10) / 10,
+              };
+            });
+            return newLayouts;
+          } else {
+            return {
+              ...prev,
+              [dragging.field]: {
+                ...prev[dragging.field],
+                left: Math.round((dragging.origLeft + dx) * 10) / 10,
+                top: Math.round((dragging.origTop + dy) * 10) / 10,
+              }
+            };
           }
-        }));
+        });
       }
       if (resizing) {
         const dx = (e.clientX - resizing.startX) * ratio.x;
@@ -437,14 +463,23 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
       if (dx || dy) {
         e.preventDefault();
         setLayouts(prev => {
-          const updated = {
-            ...prev,
-            [selected]: {
-              ...prev[selected],
-              left: Math.round((prev[selected].left + dx) * 10) / 10,
-              top: Math.round((prev[selected].top + dy) * 10) / 10,
-            }
-          };
+          const updated = { ...prev };
+          const group = DATE_GROUPS[selected];
+          if (group) {
+            group.forEach(f => {
+              updated[f] = {
+                ...updated[f],
+                left: Math.round((updated[f].left + dx) * 10) / 10,
+                top: Math.round((updated[f].top + dy) * 10) / 10,
+              };
+            });
+          } else {
+            updated[selected] = {
+              ...updated[selected],
+              left: Math.round((updated[selected].left + dx) * 10) / 10,
+              top: Math.round((updated[selected].top + dy) * 10) / 10,
+            };
+          }
           saveLayouts(updated);
           return updated;
         });
@@ -456,11 +491,25 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
 
   const updateFieldLayout = useCallback((field: string, key: keyof FieldLayout, value: number | string) => {
     setLayouts(prev => {
-      const updated = { ...prev, [field]: { ...prev[field], [key]: value } };
+      const updated = { ...prev };
+      const group = DATE_GROUPS[field];
+      
+      if (group && (key === 'top' || key === 'left')) {
+        const delta = (value as number) - (prev[field][key] as number);
+        group.forEach(f => {
+          updated[f] = {
+            ...updated[f],
+            [key]: Math.round(((prev[f][key] as number) + delta) * 10) / 10,
+          };
+        });
+      } else {
+        updated[field] = { ...updated[field], [key]: value };
+      }
+      
       saveLayouts(updated);
       return updated;
     });
-  }, []);
+  }, [saveLayouts]);
 
   const resetLayouts = useCallback(() => {
     if (!window.confirm('Сбросить все позиции на значения по умолчанию?')) return;
