@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { CertificateFormData, TAJIK_MONTHS } from '@/lib/certificateTypes';
+import { supabase } from '@/lib/supabase';
 
 // Field layout: each field has position, size, font, alignment
 export interface FieldLayout {
@@ -41,8 +42,8 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
   products_3:        { top: 118,   left: 41.5,  width: 130,   height: 7,    fontSize: 12, textAlign: 'center' },
 
   // Коды справа (вертикально, правая колонка)
-  code_num:          { top: 96.4,  left: 167.6, width: 28,    height: 7,    fontSize: 8,  textAlign: 'center' },
-  code_nm:           { top: 108.1, left: 167.9, width: 28,    height: 7,    fontSize: 8,  textAlign: 'center' },
+  code_num:          { top: 96.4,  left: 167.6, width: 28,    height: 7,    fontSize: 12,  textAlign: 'center' },
+  code_nm:           { top: 108.1, left: 167.9, width: 28,    height: 7,    fontSize: 12,  textAlign: 'center' },
 
   // Нормативные документы — 2 строки
   norm_documents_1:  { top: 127.3, left: 93.4,  width: 111.1, height: 7,    fontSize: 12, textAlign: 'center' },
@@ -61,8 +62,8 @@ const DEFAULT_LAYOUTS: AllFieldLayouts = {
   additional_info_1: { top: 212.2, left: 49.3,  width: 137.1, height: 8.7,  fontSize: 12, textAlign: 'left' },
 
   // ФИО внизу справа
-  head_name:         { top: 240.9, left: 138.3, width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
-  dept_head_name:    { top: 258.1, left: 138.3, width: 57,    height: 6,    fontSize: 12, textAlign: 'center' },
+  head_name:         { top: 240.9, left: 138.3, width: 57,    height: 6,    fontSize: 14, textAlign: 'center' },
+  dept_head_name:    { top: 258.1, left: 138.3, width: 57,    height: 6,    fontSize: 14, textAlign: 'center' },
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -94,10 +95,29 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const STORAGE_KEY = 'cert_field_layouts';
-const LAYOUT_VERSION = '4'; // bump this whenever DEFAULT_LAYOUTS changes
+const LAYOUT_VERSION = '5'; // bump this whenever DEFAULT_LAYOUTS changes
 const LAYOUT_VERSION_KEY = 'cert_field_layouts_version';
+const ACTIVE_PRESET_KEY = 'cert_active_preset_id'; // which preset this device uses
 
-function loadLayouts(): AllFieldLayouts {
+interface LayoutPreset {
+  id: string;
+  name: string;
+  data: AllFieldLayouts;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Normalizes an arbitrary saved layout blob against current DEFAULT_LAYOUTS —
+// keeps only keys that still exist, fills missing ones from defaults.
+function normalizeLayouts(parsed: Partial<AllFieldLayouts> | null | undefined): AllFieldLayouts {
+  const out: AllFieldLayouts = {};
+  for (const key of Object.keys(DEFAULT_LAYOUTS)) {
+    out[key] = (parsed && parsed[key]) || DEFAULT_LAYOUTS[key];
+  }
+  return out;
+}
+
+function loadLocalLayouts(): AllFieldLayouts {
   if (typeof window === 'undefined') return DEFAULT_LAYOUTS;
   try {
     // If layout version changed — reset to new defaults
@@ -108,20 +128,24 @@ function loadLayouts(): AllFieldLayouts {
     }
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      const parsed = JSON.parse(saved);
-      // Only keep keys that still exist in DEFAULT_LAYOUTS (removes deleted fields)
-      const filtered: AllFieldLayouts = {};
-      for (const key of Object.keys(DEFAULT_LAYOUTS)) {
-        filtered[key] = parsed[key] ?? DEFAULT_LAYOUTS[key];
-      }
-      return filtered;
+      return normalizeLayouts(JSON.parse(saved));
     }
   } catch {}
   return DEFAULT_LAYOUTS;
 }
 
-function saveLayouts(layouts: AllFieldLayouts) {
+function saveLocalLayouts(layouts: AllFieldLayouts) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(layouts));
+}
+
+function getActivePresetId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ACTIVE_PRESET_KEY);
+}
+
+function setActivePresetIdLS(id: string | null) {
+  if (id) localStorage.setItem(ACTIVE_PRESET_KEY, id);
+  else localStorage.removeItem(ACTIVE_PRESET_KEY);
 }
 
 type ArrayFieldKey = 'products' | 'basis_documents' | 'additional_info';
@@ -164,9 +188,163 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
   const [resizing, setResizing] = useState<{ field: string; startX: number; startY: number; origW: number; origH: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setLayouts(loadLayouts());
+  // Preset management
+  const [presets, setPresets] = useState<LayoutPreset[]>([]);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const presetsInitializedRef = useRef(false);
+
+  const loadPresets = useCallback(async (): Promise<LayoutPreset[]> => {
+    const { data, error } = await supabase
+      .from('layout_presets')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.warn('loadPresets failed', error);
+      return [];
+    }
+    const list = (data || []) as LayoutPreset[];
+    setPresets(list);
+    return list;
   }, []);
+
+  // Initial load: fetch presets, then apply active preset if any, otherwise local
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await loadPresets();
+      if (cancelled) return;
+      const storedId = getActivePresetId();
+      const active = storedId ? list.find(p => p.id === storedId) : undefined;
+      if (active) {
+        setActivePresetId(active.id);
+        setLayouts(normalizeLayouts(active.data));
+      } else {
+        if (storedId) setActivePresetIdLS(null); // stored id is stale
+        setActivePresetId(null);
+        setLayouts(loadLocalLayouts());
+      }
+      presetsInitializedRef.current = true;
+    })();
+    return () => { cancelled = true; };
+  }, [loadPresets]);
+
+  // Persist layout changes: debounced save to active preset (Supabase) or local
+  const persistLayouts = useCallback((next: AllFieldLayouts) => {
+    if (!presetsInitializedRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    const presetId = activePresetId;
+    if (!presetId) {
+      saveLocalLayouts(next);
+      return;
+    }
+    setSaveStatus('saving');
+    saveTimerRef.current = setTimeout(async () => {
+      const { error } = await supabase
+        .from('layout_presets')
+        .update({ data: next, updated_at: new Date().toISOString() })
+        .eq('id', presetId);
+      if (error) {
+        console.warn('saveLayouts failed', error);
+        setSaveStatus('error');
+      } else {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus(s => (s === 'saved' ? 'idle' : s)), 1500);
+      }
+    }, 500);
+  }, [activePresetId]);
+
+  const saveLayouts = useCallback((next: AllFieldLayouts) => {
+    persistLayouts(next);
+  }, [persistLayouts]);
+
+  // Switch active preset for this device
+  const selectPreset = useCallback((id: string | null) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus('idle');
+    setActivePresetIdLS(id);
+    setActivePresetId(id);
+    if (id) {
+      const preset = presets.find(p => p.id === id);
+      if (preset) setLayouts(normalizeLayouts(preset.data));
+    } else {
+      setLayouts(loadLocalLayouts());
+    }
+  }, [presets]);
+
+  const createPreset = useCallback(async () => {
+    const name = window.prompt('Название пресета (например: "Офис 1 — HP LaserJet"):');
+    if (!name || !name.trim()) return;
+    const { data, error } = await supabase
+      .from('layout_presets')
+      .insert({ name: name.trim(), data: layouts })
+      .select()
+      .single();
+    if (error || !data) {
+      alert('Не удалось создать пресет: ' + (error?.message || 'unknown'));
+      return;
+    }
+    const created = data as LayoutPreset;
+    setPresets(prev => [...prev, created]);
+    setActivePresetIdLS(created.id);
+    setActivePresetId(created.id);
+    setSaveStatus('saved');
+  }, [layouts]);
+
+  const renamePreset = useCallback(async () => {
+    if (!activePresetId) return;
+    const current = presets.find(p => p.id === activePresetId);
+    const name = window.prompt('Новое название:', current?.name || '');
+    if (!name || !name.trim() || name.trim() === current?.name) return;
+    const { error } = await supabase
+      .from('layout_presets')
+      .update({ name: name.trim() })
+      .eq('id', activePresetId);
+    if (error) {
+      alert('Не удалось переименовать: ' + error.message);
+      return;
+    }
+    setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, name: name.trim() } : p));
+  }, [activePresetId, presets]);
+
+  const deletePreset = useCallback(async () => {
+    if (!activePresetId) return;
+    const current = presets.find(p => p.id === activePresetId);
+    if (!window.confirm(`Удалить пресет "${current?.name}"? Это действие необратимо.`)) return;
+    const { error } = await supabase
+      .from('layout_presets')
+      .delete()
+      .eq('id', activePresetId);
+    if (error) {
+      alert('Не удалось удалить: ' + error.message);
+      return;
+    }
+    setPresets(prev => prev.filter(p => p.id !== activePresetId));
+    setActivePresetIdLS(null);
+    setActivePresetId(null);
+    setLayouts(loadLocalLayouts());
+  }, [activePresetId, presets]);
+
+  const duplicatePreset = useCallback(async () => {
+    const current = presets.find(p => p.id === activePresetId);
+    const baseName = current ? `${current.name} (копия)` : 'Новый пресет';
+    const name = window.prompt('Название нового пресета:', baseName);
+    if (!name || !name.trim()) return;
+    const { data, error } = await supabase
+      .from('layout_presets')
+      .insert({ name: name.trim(), data: layouts })
+      .select()
+      .single();
+    if (error || !data) {
+      alert('Не удалось создать: ' + (error?.message || 'unknown'));
+      return;
+    }
+    const created = data as LayoutPreset;
+    setPresets(prev => [...prev, created]);
+    setActivePresetIdLS(created.id);
+    setActivePresetId(created.id);
+  }, [activePresetId, layouts, presets]);
 
   // Get mm-per-pixel ratio from the container
   const getMmPerPx = useCallback(() => {
@@ -276,9 +454,14 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
   }, []);
 
   const resetLayouts = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    if (!window.confirm('Сбросить все позиции на значения по умолчанию?')) return;
     setLayouts(DEFAULT_LAYOUTS);
-  }, []);
+    if (activePresetId) {
+      persistLayouts(DEFAULT_LAYOUTS);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [activePresetId, persistLayouts]);
 
   const exportLayouts = useCallback(() => {
     const json = JSON.stringify(layouts, null, 2);
@@ -566,6 +749,65 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
         <div className="no-print" style={{ width: '260px', flexShrink: 0, fontSize: '12px', fontFamily: 'Arial, sans-serif' }}>
           <div style={{ position: 'sticky', top: '8px' }}>
             <h3 style={{ margin: '0 0 8px', fontWeight: 'bold', color: '#2E7D32' }}>Настройка полей</h3>
+
+            {/* Presets */}
+            <div style={{ background: '#f0f7f0', border: '1px solid #c8e6c9', borderRadius: '6px', padding: '8px', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <strong style={{ fontSize: '11px', color: '#2E7D32' }}>Пресет (для этого ПК/принтера)</strong>
+                {activePresetId && (
+                  <span style={{ fontSize: '10px', color: saveStatus === 'error' ? '#d32f2f' : '#666' }}>
+                    {saveStatus === 'saving' && '💾 сохраняю…'}
+                    {saveStatus === 'saved' && '✓ сохранено'}
+                    {saveStatus === 'error' && '⚠ ошибка'}
+                  </span>
+                )}
+              </div>
+              <select
+                value={activePresetId || ''}
+                onChange={e => selectPreset(e.target.value || null)}
+                style={{ width: '100%', padding: '4px 6px', border: '1px solid #c8e6c9', borderRadius: '3px', fontSize: '11px', marginBottom: '6px', background: '#fff' }}
+              >
+                <option value="">— Локально (только этот ПК) —</option>
+                {presets.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={createPreset}
+                  title="Создать новый пресет с текущими позициями"
+                  style={{ padding: '4px 8px', background: '#2E7D32', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '10px' }}
+                >
+                  + Новый
+                </button>
+                <button
+                  onClick={duplicatePreset}
+                  title="Создать копию текущего пресета"
+                  disabled={presets.length === 0 && !activePresetId}
+                  style={{ padding: '4px 8px', background: '#455A64', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '10px' }}
+                >
+                  Копия
+                </button>
+                <button
+                  onClick={renamePreset}
+                  disabled={!activePresetId}
+                  style={{ padding: '4px 8px', background: activePresetId ? '#1976D2' : '#aaa', color: '#fff', border: 'none', borderRadius: '3px', cursor: activePresetId ? 'pointer' : 'not-allowed', fontSize: '10px' }}
+                >
+                  Переим.
+                </button>
+                <button
+                  onClick={deletePreset}
+                  disabled={!activePresetId}
+                  style={{ padding: '4px 8px', background: activePresetId ? '#d32f2f' : '#aaa', color: '#fff', border: 'none', borderRadius: '3px', cursor: activePresetId ? 'pointer' : 'not-allowed', fontSize: '10px' }}
+                >
+                  Удалить
+                </button>
+              </div>
+              <p style={{ margin: '6px 0 0', color: '#666', fontSize: '10px', lineHeight: 1.3 }}>
+                Пресеты общие для всех ПК. Выбор активного — на каждом ПК свой.
+              </p>
+            </div>
+
             <p style={{ margin: '0 0 8px', color: '#666', fontSize: '11px' }}>
               Перетаскивай поля мышкой. Стрелки = 0.1мм, Shift+стрелки = 0.5мм.
               Правый нижний угол — изменение размера.
