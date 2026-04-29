@@ -192,6 +192,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
   const [presets, setPresets] = useState<LayoutPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presetsInitializedRef = useRef(false);
 
@@ -230,39 +231,45 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
     return () => { cancelled = true; };
   }, [loadPresets]);
 
-  // Persist layout changes: debounced save to active preset (Supabase) or local
+  // Persist layout changes: local only, Supabase requires manual save
   const persistLayouts = useCallback((next: AllFieldLayouts) => {
     if (!presetsInitializedRef.current) return;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     const presetId = activePresetId;
     if (!presetId) {
       saveLocalLayouts(next);
       return;
     }
-    setSaveStatus('saving');
-    saveTimerRef.current = setTimeout(async () => {
-      const { error } = await supabase
-        .from('layout_presets')
-        .update({ data: next, updated_at: new Date().toISOString() })
-        .eq('id', presetId);
-      if (error) {
-        console.warn('saveLayouts failed', error);
-        setSaveStatus('error');
-      } else {
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus(s => (s === 'saved' ? 'idle' : s)), 1500);
-      }
-    }, 500);
+    setHasUnsavedChanges(true);
   }, [activePresetId]);
 
   const saveLayouts = useCallback((next: AllFieldLayouts) => {
     persistLayouts(next);
   }, [persistLayouts]);
 
+  const saveToSupabase = useCallback(async () => {
+    if (!activePresetId) return;
+    setSaveStatus('saving');
+    const { error } = await supabase
+      .from('layout_presets')
+      .update({ data: layouts, updated_at: new Date().toISOString() })
+      .eq('id', activePresetId);
+    if (error) {
+      console.warn('saveToSupabase failed', error);
+      setSaveStatus('error');
+      alert('Ошибка при сохранении: ' + error.message);
+    } else {
+      setSaveStatus('saved');
+      setHasUnsavedChanges(false);
+      setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, data: layouts } : p));
+      setTimeout(() => setSaveStatus(s => (s === 'saved' ? 'idle' : s)), 3000);
+    }
+  }, [activePresetId, layouts]);
+
   // Switch active preset for this device
   const selectPreset = useCallback((id: string | null) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setSaveStatus('idle');
+    setHasUnsavedChanges(false);
     setActivePresetIdLS(id);
     setActivePresetId(id);
     if (id) {
@@ -290,6 +297,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
     setActivePresetIdLS(created.id);
     setActivePresetId(created.id);
     setSaveStatus('saved');
+    setHasUnsavedChanges(false);
   }, [layouts]);
 
   const renamePreset = useCallback(async () => {
@@ -344,6 +352,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
     setPresets(prev => [...prev, created]);
     setActivePresetIdLS(created.id);
     setActivePresetId(created.id);
+    setHasUnsavedChanges(false);
   }, [activePresetId, layouts, presets]);
 
   // Get mm-per-pixel ratio from the container
@@ -754,11 +763,9 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
             <div style={{ background: '#f0f7f0', border: '1px solid #c8e6c9', borderRadius: '6px', padding: '8px', marginBottom: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <strong style={{ fontSize: '11px', color: '#2E7D32' }}>Пресет (для этого ПК/принтера)</strong>
-                {activePresetId && (
-                  <span style={{ fontSize: '10px', color: saveStatus === 'error' ? '#d32f2f' : '#666' }}>
-                    {saveStatus === 'saving' && '💾 сохраняю…'}
-                    {saveStatus === 'saved' && '✓ сохранено'}
-                    {saveStatus === 'error' && '⚠ ошибка'}
+                {hasUnsavedChanges && activePresetId && (
+                  <span style={{ fontSize: '10px', color: '#E65100', fontWeight: 'bold' }}>
+                    ⚠️ Есть несохраненные изменения
                   </span>
                 )}
               </div>
@@ -779,6 +786,20 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                   style={{ padding: '4px 8px', background: '#2E7D32', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '10px' }}
                 >
                   + Новый
+                </button>
+                <button
+                  onClick={saveToSupabase}
+                  disabled={!activePresetId || (!hasUnsavedChanges && saveStatus !== 'error')}
+                  style={{ 
+                    padding: '4px 8px', 
+                    background: (!activePresetId || (!hasUnsavedChanges && saveStatus !== 'error')) ? '#aaa' : '#E65100', 
+                    color: '#fff', border: 'none', borderRadius: '3px', 
+                    cursor: (!activePresetId || (!hasUnsavedChanges && saveStatus !== 'error')) ? 'not-allowed' : 'pointer', 
+                    fontSize: '10px',
+                    fontWeight: hasUnsavedChanges ? 'bold' : 'normal'
+                  }}
+                >
+                  {saveStatus === 'saving' ? 'Сохраняю...' : saveStatus === 'saved' ? '✓ Сохранено' : '💾 Сохранить'}
                 </button>
                 <button
                   onClick={duplicatePreset}
