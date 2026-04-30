@@ -270,7 +270,7 @@ export default function Home() {
         }
       }
 
-      const payload: any = {
+      const payload: Record<string, string | null> = {
         cert_number: formData.cert_number,
         date_start_day: formData.date_start_day,
         date_start_month: formData.date_start_month,

@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
+import { PT_Serif } from "next/font/google";
 import "./globals.css";
 import Navigation from "./components/Navigation";
+
+const ptSerif = PT_Serif({
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
+  subsets: ['cyrillic', 'latin'],
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: "Реестр сертификатов — Тоҷикстандарт",
@@ -14,13 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body>
+      <body className={ptSerif.className}>
         <Navigation />
         {children}
       </body>

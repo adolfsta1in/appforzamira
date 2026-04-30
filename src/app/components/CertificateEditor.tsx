@@ -449,7 +449,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragging, resizing, getMmPerPx]);
+  }, [dragging, resizing, getMmPerPx, saveLayouts]);
 
   // Keyboard nudge for selected field
   useEffect(() => {
@@ -488,7 +488,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [calibrationMode, selected]);
+  }, [calibrationMode, selected, saveLayouts]);
 
   const updateFieldLayout = useCallback((field: string, key: keyof FieldLayout, value: number | string) => {
     setLayouts(prev => {
