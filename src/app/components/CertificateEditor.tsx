@@ -3,6 +3,25 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { CertificateFormData, TAJIK_MONTHS } from '@/lib/certificateTypes';
 import { supabase } from '@/lib/supabase';
+import { AutocompleteInput } from '@/app/components/AutocompleteInput';
+
+const AUTOCOMPLETE_FIELDS: Record<string, string> = {
+  'cert_body_name': 'cert_body_name',
+  'cert_body_address': 'cert_body_address',
+  'issued_to_org': 'issued_to_org',
+  'issued_to_address': 'issued_to_address',
+  'products_1': 'products',
+  'products_2': 'products',
+  'products_3': 'products',
+  'norm_documents_1': 'norm_documents',
+  'norm_documents_2': 'norm_documents',
+  'basis_document_1': 'basis_document',
+  'basis_document_2': 'basis_document',
+  'additional_info_1': 'additional_info',
+  'country': 'country',
+  'head_name': 'head_name',
+  'dept_head_name': 'dept_head_name',
+};
 
 // Field layout: each field has position, size, font, alignment
 export interface FieldLayout {
@@ -712,6 +731,18 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                     <option key={m.value} value={m.value}>{m.value}</option>
                   ))}
                 </select>
+              ) : AUTOCOMPLETE_FIELDS[field] ? (
+                <AutocompleteInput
+                  columnName={AUTOCOMPLETE_FIELDS[field]}
+                  isMultiline={isMultiline(field)}
+                  value={value}
+                  onChange={handleValueChange}
+                  onFocus={() => { if (!calibrationMode) setActiveField(field); }}
+                  onMouseDown={e => { if (calibrationMode) handleMouseDown(e, field, 'drag'); }}
+                  placeholder={calibrationMode ? FIELD_LABELS[field] : ''}
+                  style={{ ...baseStyle, position: 'relative', top: 0, left: 0 }}
+                  className="cert-field"
+                />
               ) : isMultiline(field) ? (
                 <textarea
                   value={value}
