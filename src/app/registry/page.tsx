@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS, CertRow, MONTHS } from '@/lib/certificateTypes';
+import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS, TAJIK_MONTHS } from '@/lib/certificateTypes';
 import { supabase } from '@/lib/supabase';
 
 interface CertRow {
@@ -327,7 +327,7 @@ export default function RegistryPage() {
                                   <input className="w-8 p-1 border rounded text-center" value={editFormData.date_start_day || ''} onChange={e => handleEditChange('date_start_day', e.target.value)} placeholder="DD" />
                                   <select className="w-[80px] p-1 border rounded" value={editFormData.date_start_month || ''} onChange={e => handleEditChange('date_start_month', e.target.value)}>
                                      <option value="">Месяц</option>
-                                     {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                                     {TAJIK_MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                                   </select>
                                   <input className="w-12 p-1 border rounded text-center" value={editFormData.date_start_year || ''} onChange={e => handleEditChange('date_start_year', e.target.value)} placeholder="YYYY" />
                                 </div>
@@ -339,7 +339,7 @@ export default function RegistryPage() {
                                   <input className="w-8 p-1 border rounded text-center" value={editFormData.date_end_day || ''} onChange={e => handleEditChange('date_end_day', e.target.value)} placeholder="DD" />
                                   <select className="w-[80px] p-1 border rounded" value={editFormData.date_end_month || ''} onChange={e => handleEditChange('date_end_month', e.target.value)}>
                                      <option value="">Месяц</option>
-                                     {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                                     {TAJIK_MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                                   </select>
                                   <input className="w-12 p-1 border rounded text-center" value={editFormData.date_end_year || ''} onChange={e => handleEditChange('date_end_year', e.target.value)} placeholder="YYYY" />
                                 </div>
