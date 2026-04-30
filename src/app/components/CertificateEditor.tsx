@@ -882,6 +882,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
           );
         })}
       </div>
+      </div>
 
       {/* Calibration panel */}
       {calibrationMode && (
