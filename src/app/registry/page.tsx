@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS } from '@/lib/certificateTypes';
+import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS, CertRow, MONTHS } from '@/lib/certificateTypes';
 import { supabase } from '@/lib/supabase';
 
 interface CertRow {
@@ -49,6 +49,10 @@ export default function RegistryPage() {
   const [certs, setCerts] = useState<CertRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<Partial<CertRow>>({});
+  
   const router = useRouter();
 
   const loadCerts = useCallback(async () => {
@@ -163,6 +167,40 @@ export default function RegistryPage() {
     router.push('/');
   }, [router]);
 
+  const startInlineEdit = useCallback((cert: CertRow) => {
+    setEditingRowId(cert.id);
+    setEditFormData({ ...cert });
+  }, []);
+
+  const cancelInlineEdit = useCallback(() => {
+    setEditingRowId(null);
+    setEditFormData({});
+  }, []);
+
+  const handleEditChange = useCallback((field: keyof CertRow, value: string) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const saveInlineEdit = useCallback(async () => {
+    if (!editingRowId) return;
+    
+    setLoading(true);
+    const { error } = await supabase
+      .from('certificates')
+      .update(editFormData)
+      .eq('id', editingRowId);
+
+    if (error) {
+      alert(`Ошибка при сохранении: ${error.message}`);
+      setLoading(false);
+      return;
+    }
+
+    await loadCerts();
+    setEditingRowId(null);
+    setEditFormData({});
+  }, [editingRowId, editFormData, loadCerts]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-[1800px] mx-auto p-6">
@@ -234,6 +272,7 @@ export default function RegistryPage() {
                 </thead>
                 <tbody>
                   {certs.map((cert, idx) => {
+                    const isEditing = cert.id === editingRowId;
                     const row = formToRegistryRow({
                       cert_number: cert.cert_number,
                       cert_number_on_blank: '',
@@ -270,20 +309,78 @@ export default function RegistryPage() {
                       invoice_date: cert.invoice_date,
                       inn: cert.inn,
                     });
+                    
                     return (
                       <tr key={cert.id} className="hover:bg-gray-50">
                         <td className="px-2 py-2 border border-gray-300 text-center text-xs">
                           {idx + 1}
                         </td>
-                        {ALL_COLUMNS.map(col => (
-                          <td
-                            key={col}
-                            className="px-2 py-2 border border-gray-300 text-center text-xs max-w-[150px] truncate"
-                            title={row[col as keyof typeof row] || ''}
-                          >
-                            {row[col as keyof typeof row] || '\u00A0'}
-                          </td>
-                        ))}
+                        {ALL_COLUMNS.map(col => {
+                          if (isEditing) {
+                            if (col === 'A') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-20 text-xs p-1 border rounded" value={editFormData.serial_number || ''} onChange={e => handleEditChange('serial_number', e.target.value)} /></td>;
+                            if (col === 'C') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-24 text-xs p-1 border rounded" value={editFormData.cert_number || ''} onChange={e => handleEditChange('cert_number', e.target.value)} /></td>;
+                            if (col === 'E') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-16 text-xs p-1 border rounded" value={editFormData.copy_number || ''} onChange={e => handleEditChange('copy_number', e.target.value)} /></td>;
+                            
+                            if (col === 'F') return (
+                              <td key={col} className="px-1 py-1 border border-gray-300 text-xs">
+                                <div className="flex gap-1">
+                                  <input className="w-8 p-1 border rounded text-center" value={editFormData.date_start_day || ''} onChange={e => handleEditChange('date_start_day', e.target.value)} placeholder="DD" />
+                                  <select className="w-[80px] p-1 border rounded" value={editFormData.date_start_month || ''} onChange={e => handleEditChange('date_start_month', e.target.value)}>
+                                     <option value="">Месяц</option>
+                                     {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                                  </select>
+                                  <input className="w-12 p-1 border rounded text-center" value={editFormData.date_start_year || ''} onChange={e => handleEditChange('date_start_year', e.target.value)} placeholder="YYYY" />
+                                </div>
+                              </td>
+                            );
+                            if (col === 'G') return (
+                              <td key={col} className="px-1 py-1 border border-gray-300 text-xs">
+                                <div className="flex gap-1">
+                                  <input className="w-8 p-1 border rounded text-center" value={editFormData.date_end_day || ''} onChange={e => handleEditChange('date_end_day', e.target.value)} placeholder="DD" />
+                                  <select className="w-[80px] p-1 border rounded" value={editFormData.date_end_month || ''} onChange={e => handleEditChange('date_end_month', e.target.value)}>
+                                     <option value="">Месяц</option>
+                                     {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                                  </select>
+                                  <input className="w-12 p-1 border rounded text-center" value={editFormData.date_end_year || ''} onChange={e => handleEditChange('date_end_year', e.target.value)} placeholder="YYYY" />
+                                </div>
+                              </td>
+                            );
+
+                            if (col === 'H') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-32 text-xs p-1 border rounded" value={editFormData.issued_to_org || ''} onChange={e => { handleEditChange('issued_to_org', e.target.value); handleEditChange('issued_to_address', ''); }} /></td>;
+                            if (col === 'L') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-16 text-xs p-1 border rounded" value={editFormData.cert_processing || ''} onChange={e => handleEditChange('cert_processing', e.target.value)} /></td>;
+                            if (col === 'M') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-32 text-xs p-1 border rounded" value={editFormData.products || ''} onChange={e => handleEditChange('products', e.target.value)} /></td>;
+                            if (col === 'N') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-16 text-xs p-1 border rounded" value={editFormData.quantity || ''} onChange={e => handleEditChange('quantity', e.target.value)} /></td>;
+                            if (col === 'N1') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-16 text-xs p-1 border rounded" value={editFormData.quantity_unit || ''} onChange={e => handleEditChange('quantity_unit', e.target.value)} /></td>;
+                            if (col === 'O') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-32 text-xs p-1 border rounded" value={editFormData.basis_document || ''} onChange={e => handleEditChange('basis_document', e.target.value)} /></td>;
+                            if (col === 'P') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-20 text-xs p-1 border rounded" value={editFormData.country || ''} onChange={e => handleEditChange('country', e.target.value)} /></td>;
+                            if (col === 'Q') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-20 text-xs p-1 border rounded" value={editFormData.total_cost || ''} onChange={e => handleEditChange('total_cost', e.target.value)} /></td>;
+                            if (col === 'R') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-20 text-xs p-1 border rounded" value={editFormData.amount_due || ''} onChange={e => handleEditChange('amount_due', e.target.value)} /></td>;
+                            if (col === 'S') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-32 text-xs p-1 border rounded" value={editFormData.tests || ''} onChange={e => handleEditChange('tests', e.target.value)} /></td>;
+                            if (col === 'T') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-24 text-xs p-1 border rounded" value={editFormData.invoice_number || ''} onChange={e => handleEditChange('invoice_number', e.target.value)} /></td>;
+                            if (col === 'U') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-24 text-xs p-1 border rounded" value={editFormData.invoice_date || ''} onChange={e => handleEditChange('invoice_date', e.target.value)} /></td>;
+                            if (col === 'V') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-32 text-xs p-1 border rounded" value={editFormData.inn || ''} onChange={e => handleEditChange('inn', e.target.value)} /></td>;
+                            
+                            // Default for uneditable columns (B, D, I, J, K)
+                            return (
+                              <td
+                                key={col}
+                                className="px-2 py-2 border border-gray-300 text-center text-xs bg-gray-100"
+                              >
+                                {row[col as keyof typeof row] || '\u00A0'}
+                              </td>
+                            );
+                          } else {
+                            return (
+                              <td
+                                key={col}
+                                className="px-2 py-2 border border-gray-300 text-center text-xs max-w-[150px] truncate"
+                                title={row[col as keyof typeof row] || ''}
+                              >
+                                {row[col as keyof typeof row] || '\u00A0'}
+                              </td>
+                            );
+                          }
+                        })}
                         <td className="px-2 py-2 border border-gray-300 text-center">
                           {cert.pdf_storage_path ? (
                             <button
@@ -296,20 +393,45 @@ export default function RegistryPage() {
                             <span className="text-gray-300 text-xs">—</span>
                           )}
                         </td>
-                        <td className="px-2 py-2 border border-gray-300 text-center space-x-2">
-                          <button
-                            onClick={() => editCert(cert)}
-                            className="text-green-600 hover:text-green-800 text-xs"
-                          >
-                            Изменить
-                          </button>
-                          <button
-                            onClick={() => deleteCert(cert.id, cert.pdf_storage_path)}
-                            className="text-red-500 hover:text-red-700 text-xs"
-                          >
-                            Удалить
-                          </button>
-                        </td>
+                        {isEditing ? (
+                          <td className="px-2 py-2 border border-gray-300 text-center space-x-2 whitespace-nowrap">
+                            <button
+                              onClick={saveInlineEdit}
+                              className="text-blue-600 hover:text-blue-800 text-xs font-semibold"
+                            >
+                              Сохранить
+                            </button>
+                            <button
+                              onClick={cancelInlineEdit}
+                              className="text-gray-500 hover:text-gray-700 text-xs"
+                            >
+                              Отмена
+                            </button>
+                          </td>
+                        ) : (
+                          <td className="px-2 py-2 border border-gray-300 text-center space-x-2 whitespace-nowrap">
+                            <button
+                              onClick={() => editCert(cert)}
+                              className="text-green-600 hover:text-green-800 text-xs"
+                              title="Редактировать на бланке"
+                            >
+                              В бланк
+                            </button>
+                            <button
+                              onClick={() => startInlineEdit(cert)}
+                              className="text-blue-600 hover:text-blue-800 text-xs"
+                              title="Редактировать в строке"
+                            >
+                              В строке
+                            </button>
+                            <button
+                              onClick={() => deleteCert(cert.id, cert.pdf_storage_path)}
+                              className="text-red-500 hover:text-red-700 text-xs"
+                            >
+                              Удалить
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
