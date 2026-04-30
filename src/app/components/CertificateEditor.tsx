@@ -193,6 +193,7 @@ interface CertificateEditorProps {
 export default function CertificateEditor({ formData, onFieldChange, onArrayFieldChange, onAddArrayRow, onRemoveArrayRow, calibrationMode }: CertificateEditorProps) {
   const [layouts, setLayouts] = useState<AllFieldLayouts>(DEFAULT_LAYOUTS);
   const [selected, setSelected] = useState<string | null>(null);
+  const [activeField, setActiveField] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ field: string; startX: number; startY: number; origLeft: number; origTop: number; origLayouts: AllFieldLayouts } | null>(null);
   const [resizing, setResizing] = useState<{ field: string; startX: number; startY: number; origW: number; origH: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -537,22 +538,97 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
 
   return (
     <div style={{ display: 'flex', gap: '16px' }}>
-      {/* A4 page with blank background */}
-      <div
-        ref={containerRef}
-        id="print-area"
-        className="cert-editor"
-        style={{
-          position: 'relative',
-          width: '210mm',
-          height: '297mm',
-          background: '#fff',
-          flexShrink: 0,
-          overflow: 'hidden',
-          fontFamily: "'PT Serif', 'Times New Roman', serif",
-        }}
-        onClick={() => { if (calibrationMode) setSelected(null); }}
-      >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Quick formatting toolbar */}
+        {!calibrationMode && (
+          <div className="no-print" style={{ 
+            height: '48px', 
+            background: '#f8f9fa', 
+            border: '1px solid #e0e0e0', 
+            borderRadius: '8px', 
+            padding: '0 16px',
+            display: 'flex',
+            alignItems: 'center',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            width: '210mm'
+          }}>
+            {activeField && layouts[activeField] ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                <span style={{ fontSize: '13px', color: '#555', fontWeight: 'bold' }}>
+                  {FIELD_LABELS[activeField] || activeField}
+                </span>
+                
+                {/* Font Size */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button 
+                    type="button"
+                    onClick={() => updateFieldLayout(activeField, 'fontSize', Math.max(6, layouts[activeField].fontSize - 0.5))}
+                    style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    -
+                  </button>
+                  <span style={{ fontSize: '13px', minWidth: '36px', textAlign: 'center', fontWeight: 'bold' }}>
+                    {layouts[activeField].fontSize} pt
+                  </span>
+                  <button 
+                    type="button"
+                    onClick={() => updateFieldLayout(activeField, 'fontSize', Math.min(36, layouts[activeField].fontSize + 0.5))}
+                    style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    +
+                  </button>
+                </div>
+
+                <div style={{ width: '1px', height: '24px', background: '#ccc' }} />
+
+                {/* Alignment */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {(['left', 'center', 'right'] as const).map(align => (
+                    <button
+                      key={align}
+                      type="button"
+                      onClick={() => updateFieldLayout(activeField, 'textAlign', align)}
+                      style={{ 
+                        padding: '4px 12px', 
+                        fontSize: '12px',
+                        border: '1px solid',
+                        borderColor: layouts[activeField].textAlign === align ? '#1976D2' : '#ccc',
+                        background: layouts[activeField].textAlign === align ? '#e3f2fd' : '#fff',
+                        color: layouts[activeField].textAlign === align ? '#1976D2' : '#333',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontWeight: layouts[activeField].textAlign === align ? 'bold' : 'normal'
+                      }}
+                    >
+                      {align === 'left' ? 'Влево' : align === 'center' ? 'По центру' : 'Вправо'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <span style={{ fontSize: '13px', color: '#999', fontStyle: 'italic' }}>
+                Кликните на любое текстовое поле на бланке, чтобы изменить его шрифт или выравнивание
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* A4 page with blank background */}
+        <div
+          ref={containerRef}
+          id="print-area"
+          className="cert-editor"
+          style={{
+            position: 'relative',
+            width: '210mm',
+            height: '297mm',
+            background: '#fff',
+            flexShrink: 0,
+            overflow: 'hidden',
+            fontFamily: "'PT Serif', 'Times New Roman', serif",
+          }}
+          onClick={() => { if (calibrationMode) setSelected(null); }}
+        >
         {/* Editable fields */}
         {Object.keys(layouts).map(field => {
           const layout = layouts[field];
@@ -619,6 +695,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                 <select
                   value={value}
                   onChange={e => handleValueChange(e.target.value)}
+                  onFocus={() => { if (!calibrationMode) setActiveField(field); }}
                   onMouseDown={e => { if (calibrationMode) { handleMouseDown(e, field, 'drag'); } }}
                   style={{
                     ...baseStyle,
@@ -639,6 +716,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                 <textarea
                   value={value}
                   onChange={e => handleValueChange(e.target.value)}
+                  onFocus={() => { if (!calibrationMode) setActiveField(field); }}
                   onMouseDown={e => { if (calibrationMode) handleMouseDown(e, field, 'drag'); }}
                   placeholder={calibrationMode ? FIELD_LABELS[field] : ''}
                   style={{ ...baseStyle, position: 'relative', top: 0, left: 0 }}
@@ -649,6 +727,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                   type="text"
                   value={value}
                   onChange={e => handleValueChange(e.target.value)}
+                  onFocus={() => { if (!calibrationMode) setActiveField(field); }}
                   onMouseDown={e => { if (calibrationMode) handleMouseDown(e, field, 'drag'); }}
                   placeholder={calibrationMode ? FIELD_LABELS[field] : ''}
                   style={{ ...baseStyle, position: 'relative', top: 0, left: 0 }}
@@ -726,6 +805,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                       <textarea
                         value={value}
                         onChange={e => onArrayFieldChange(arrayKey, arrIdx, e.target.value)}
+                        onFocus={() => { if (!calibrationMode) setActiveField(baseLayoutKey); }}
                         style={style}
                         className="cert-field"
                       />
@@ -734,6 +814,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                         type="text"
                         value={value}
                         onChange={e => onArrayFieldChange(arrayKey, arrIdx, e.target.value)}
+                        onFocus={() => { if (!calibrationMode) setActiveField(baseLayoutKey); }}
                         style={style}
                         className="cert-field"
                       />
