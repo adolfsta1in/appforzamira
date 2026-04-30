@@ -270,46 +270,65 @@ export default function Home() {
         }
       }
 
-      const { error: insertError } = await supabase
-        .from('certificates')
-        .insert({
-          cert_number: formData.cert_number,
-          date_start_day: formData.date_start_day,
-          date_start_month: formData.date_start_month,
-          date_start_year: formData.date_start_year,
-          date_end_day: formData.date_end_day,
-          date_end_month: formData.date_end_month,
-          date_end_year: formData.date_end_year,
-          cert_body_name: formData.cert_body_name,
-          cert_body_address: formData.cert_body_address,
-          cert_body_number: formData.cert_body_number,
-          products: formData.products.filter(Boolean).join(' '),
-          quantity: formData.quantity,
-          quantity_unit: formData.quantity_unit,
-          code_num: formData.code_num,
-          code_nm: formData.code_nm,
-          norm_documents: [formData.norm_documents_1, formData.norm_documents_2].filter(Boolean).join(' '),
-          country: formData.country,
-          issued_to_org: formData.issued_to_org,
-          issued_to_address: formData.issued_to_address,
-          basis_document: formData.basis_documents.filter(Boolean).join(' '),
-          additional_info: formData.additional_info.filter(Boolean).join(' '),
-          head_name: formData.head_name,
-          dept_head_name: formData.dept_head_name,
-          serial_number: formData.serial_number,
-          copy_number: formData.copy_number,
-          cert_processing: formData.cert_processing,
-          total_cost: formData.total_cost,
-          amount_due: formData.amount_due,
-          tests: formData.tests,
-          invoice_number: formData.invoice_number,
-          invoice_date: formData.invoice_date,
-          inn: formData.inn,
-          pdf_storage_path: pdfStoragePath,
-        });
+      const payload: any = {
+        cert_number: formData.cert_number,
+        date_start_day: formData.date_start_day,
+        date_start_month: formData.date_start_month,
+        date_start_year: formData.date_start_year,
+        date_end_day: formData.date_end_day,
+        date_end_month: formData.date_end_month,
+        date_end_year: formData.date_end_year,
+        cert_body_name: formData.cert_body_name,
+        cert_body_address: formData.cert_body_address,
+        cert_body_number: formData.cert_body_number,
+        products: formData.products.filter(Boolean).join(' '),
+        quantity: formData.quantity,
+        quantity_unit: formData.quantity_unit,
+        code_num: formData.code_num,
+        code_nm: formData.code_nm,
+        norm_documents: [formData.norm_documents_1, formData.norm_documents_2].filter(Boolean).join(' '),
+        country: formData.country,
+        issued_to_org: formData.issued_to_org,
+        issued_to_address: formData.issued_to_address,
+        basis_document: formData.basis_documents.filter(Boolean).join(' '),
+        additional_info: formData.additional_info.filter(Boolean).join(' '),
+        head_name: formData.head_name,
+        dept_head_name: formData.dept_head_name,
+        serial_number: formData.serial_number,
+        copy_number: formData.copy_number,
+        cert_processing: formData.cert_processing,
+        total_cost: formData.total_cost,
+        amount_due: formData.amount_due,
+        tests: formData.tests,
+        invoice_number: formData.invoice_number,
+        invoice_date: formData.invoice_date,
+        inn: formData.inn,
+      };
 
-      if (insertError) {
-        setError('Ошибка при сохранении: ' + insertError.message);
+      if (pdfStoragePath) {
+        payload.pdf_storage_path = pdfStoragePath;
+      }
+
+      let saveError;
+
+      if (formData.id) {
+        const { error } = await supabase
+          .from('certificates')
+          .update(payload)
+          .eq('id', formData.id);
+        saveError = error;
+      } else {
+        const { error } = await supabase
+          .from('certificates')
+          .insert({
+            ...payload,
+            pdf_storage_path: pdfStoragePath, // Make sure it can be null on insert
+          });
+        saveError = error;
+      }
+
+      if (saveError) {
+        setError('Ошибка при сохранении: ' + saveError.message);
         return;
       }
 
@@ -447,7 +466,7 @@ export default function Home() {
               saved ? 'bg-green-600' : 'bg-purple-600 hover:bg-purple-700'
             }`}
           >
-            {saved ? 'Сохранено!' : 'В реестр'}
+            {saved ? 'Сохранено!' : (formData.id ? 'Обновить в реестре' : 'В реестр')}
           </button>
 
           <button

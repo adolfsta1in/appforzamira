@@ -38,6 +38,9 @@ export interface CertificateFormData {
   invoice_number: string;
   invoice_date: string;
   inn: string;
+  
+  // Track if this is an existing record being edited
+  id?: string;
 }
 
 export const EMPTY_FORM_DATA: CertificateFormData = {
@@ -75,6 +78,7 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   invoice_number: '',
   invoice_date: '',
   inn: '',
+  id: undefined,
 };
 
 export const TAJIK_MONTHS = [

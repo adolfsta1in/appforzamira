@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS } from '@/lib/certificateTypes';
 import { supabase } from '@/lib/supabase';
 
@@ -48,6 +49,7 @@ export default function RegistryPage() {
   const [certs, setCerts] = useState<CertRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const loadCerts = useCallback(async () => {
     setLoading(true);
@@ -116,6 +118,50 @@ export default function RegistryPage() {
     const { data } = supabase.storage.from('pdf-files').getPublicUrl(pdfPath);
     window.open(data.publicUrl, '_blank');
   }, []);
+
+  const editCert = useCallback((cert: CertRow) => {
+    const formData = {
+      id: cert.id,
+      cert_number: cert.cert_number,
+      cert_number_on_blank: '',
+      date_start_day: cert.date_start_day,
+      date_start_month: cert.date_start_month,
+      date_start_year: cert.date_start_year,
+      date_end_day: cert.date_end_day,
+      date_end_month: cert.date_end_month,
+      date_end_year: cert.date_end_year,
+      cert_body_name: cert.cert_body_name,
+      cert_body_address: cert.cert_body_address,
+      cert_body_number: cert.cert_body_number,
+      products: [cert.products],
+      quantity: cert.quantity,
+      quantity_unit: cert.quantity_unit || '',
+      code_num: cert.code_num,
+      code_nm: cert.code_nm,
+      norm_documents_1: cert.norm_documents,
+      norm_documents_2: '',
+      country: cert.country,
+      issued_to_org: cert.issued_to_org,
+      issued_to_address: cert.issued_to_address,
+      basis_documents: [cert.basis_document],
+      additional_info: [cert.additional_info],
+      head_name: cert.head_name,
+      dept_head_name: cert.dept_head_name,
+      serial_number: cert.serial_number,
+      copy_number: cert.copy_number,
+      cert_processing: cert.cert_processing,
+      total_cost: cert.total_cost,
+      amount_due: cert.amount_due,
+      tests: cert.tests,
+      invoice_number: cert.invoice_number,
+      invoice_date: cert.invoice_date,
+      inn: cert.inn,
+    };
+    
+    // Save to draft and redirect
+    localStorage.setItem('cert_form_draft', JSON.stringify({ version: '1', data: formData }));
+    router.push('/');
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -250,7 +296,13 @@ export default function RegistryPage() {
                             <span className="text-gray-300 text-xs">—</span>
                           )}
                         </td>
-                        <td className="px-2 py-2 border border-gray-300 text-center">
+                        <td className="px-2 py-2 border border-gray-300 text-center space-x-2">
+                          <button
+                            onClick={() => editCert(cert)}
+                            className="text-green-600 hover:text-green-800 text-xs"
+                          >
+                            Изменить
+                          </button>
                           <button
                             onClick={() => deleteCert(cert.id, cert.pdf_storage_path)}
                             className="text-red-500 hover:text-red-700 text-xs"
