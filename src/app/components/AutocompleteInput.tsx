@@ -27,7 +27,9 @@ export function AutocompleteInput({
 }: AutocompleteInputProps) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   
   const debouncedValue = useDebounce(value, 300);
 
@@ -57,6 +59,11 @@ export function AutocompleteInput({
     }
   }, [debouncedValue, columnName, isOpen]);
 
+  // Reset highlight when suggestions change
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [suggestions]);
+
   // Handle clicking outside to close the dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -71,11 +78,47 @@ export function AutocompleteInput({
   const handleSelect = (suggestion: string) => {
     onChange(suggestion);
     setIsOpen(false);
+    setHighlightedIndex(-1);
   };
 
   const handleFocus = () => {
     setIsOpen(true);
     if (onFocus) onFocus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen || suggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex(prev => {
+        const next = prev < suggestions.length - 1 ? prev + 1 : 0;
+        scrollToItem(next);
+        return next;
+      });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => {
+        const next = prev > 0 ? prev - 1 : suggestions.length - 1;
+        scrollToItem(next);
+        return next;
+      });
+    } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+      e.preventDefault();
+      handleSelect(suggestions[highlightedIndex]);
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
+  const scrollToItem = (index: number) => {
+    if (listRef.current) {
+      const items = listRef.current.children;
+      if (items[index]) {
+        (items[index] as HTMLElement).scrollIntoView({ block: 'nearest' });
+      }
+    }
   };
 
   const commonProps = {
@@ -86,6 +129,7 @@ export function AutocompleteInput({
     },
     onFocus: handleFocus,
     onMouseDown,
+    onKeyDown: handleKeyDown,
     placeholder,
     className,
   };
@@ -108,6 +152,7 @@ export function AutocompleteInput({
       
       {isOpen && suggestions.length > 0 && (
         <ul 
+          ref={listRef}
           className="no-print"
           style={{ 
             position: 'absolute',
@@ -133,6 +178,7 @@ export function AutocompleteInput({
             <li
               key={idx}
               onMouseDown={(e) => { e.preventDefault(); handleSelect(suggestion); }}
+              onMouseEnter={() => setHighlightedIndex(idx)}
               style={{ 
                 padding: '8px 12px',
                 fontSize: '13px',
@@ -141,9 +187,8 @@ export function AutocompleteInput({
                 borderBottom: '1px solid #f3f4f6',
                 fontFamily: 'Arial, sans-serif',
                 wordBreak: 'break-word',
+                background: idx === highlightedIndex ? '#dbeafe' : '#fff',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
             >
               {suggestion}
             </li>
