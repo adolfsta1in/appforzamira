@@ -50,30 +50,40 @@ export default function RegistryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 100;
+  
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<CertRow>>({});
   
   const router = useRouter();
 
-  const loadCerts = useCallback(async () => {
+  const loadCerts = useCallback(async (page: number) => {
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
+    
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error: fetchError, count } = await supabase
       .from('certificates')
-      .select('*')
-      .order('saved_at', { ascending: false });
+      .select('*', { count: 'exact' })
+      .order('saved_at', { ascending: false })
+      .range(from, to);
 
     if (fetchError) {
       setError('Ошибка загрузки: ' + fetchError.message);
     } else {
       setCerts(data || []);
+      if (count !== null) setTotalCount(count);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    loadCerts();
-  }, [loadCerts]);
+    loadCerts(currentPage);
+  }, [loadCerts, currentPage]);
 
   const deleteCert = useCallback(async (id: string, pdfPath: string | null) => {
     const { error: deleteError } = await supabase
@@ -196,21 +206,40 @@ export default function RegistryPage() {
       return;
     }
 
-    await loadCerts();
+    await loadCerts(currentPage);
     setEditingRowId(null);
     setEditFormData({});
-  }, [editingRowId, editFormData, loadCerts]);
+  }, [editingRowId, editFormData, loadCerts, currentPage]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-[1800px] mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-800">
-            Реестр сертификатов ({certs.length})
+            Реестр сертификатов (всего: {totalCount})
           </h2>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || loading}
+                className="px-3 py-1.5 rounded bg-white border border-gray-300 text-sm disabled:opacity-50 hover:bg-gray-50"
+              >
+                Пред.
+              </button>
+              <span className="text-sm font-medium text-gray-600">
+                Стр. {currentPage} из {Math.max(1, Math.ceil(totalCount / pageSize))}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / pageSize), p + 1))}
+                disabled={currentPage >= Math.ceil(totalCount / pageSize) || loading}
+                className="px-3 py-1.5 rounded bg-white border border-gray-300 text-sm disabled:opacity-50 hover:bg-gray-50"
+              >
+                След.
+              </button>
+            </div>
             <button
-              onClick={loadCerts}
+              onClick={() => loadCerts(currentPage)}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
               Обновить
