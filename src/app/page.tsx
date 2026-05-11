@@ -13,6 +13,7 @@ import {
 import CertificateEditor from './components/CertificateEditor';
 import { supabase } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
+import { applyAutoReplace, initAutoReplacements } from '@/lib/autoReplace';
 
 // ─── Templates ───────────────────────────────────────────────────────────────
 interface CertTemplate {
@@ -113,24 +114,28 @@ export default function Home() {
     const { data } = await supabase
       .from('templates')
       .select('*')
+      .neq('name', '__system_auto_replacements__')
       .order('created_at', { ascending: false });
     setTemplates((data || []) as CertTemplate[]);
   }, []);
 
-  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+  useEffect(() => { 
+    initAutoReplacements();
+    loadTemplates(); 
+  }, [loadTemplates]);
 
   const updateField = useCallback((key: keyof CertificateFormData, value: string) => {
     if (key === 'quantity' || key === 'quantity_unit') {
       userEditedQuantityRef.current = true;
     }
-    setFormData(prev => ({ ...prev, [key]: value }));
+    setFormData(prev => ({ ...prev, [key]: applyAutoReplace(value) }));
   }, []);
 
   const updateArrayField = useCallback(
     (key: 'products' | 'basis_documents' | 'additional_info', index: number, value: string) => {
       setFormData(prev => {
         const arr = [...prev[key]];
-        arr[index] = value;
+        arr[index] = applyAutoReplace(value);
         return { ...prev, [key]: arr };
       });
     },

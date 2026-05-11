@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS, TAJIK_MONTHS } from '@/lib/certificateTypes';
 import { supabase } from '@/lib/supabase';
+import { applyAutoReplace, initAutoReplacements } from '@/lib/autoReplace';
 
 interface CertRow {
   id: string;
@@ -82,6 +83,7 @@ export default function RegistryPage() {
   }, []);
 
   useEffect(() => {
+    initAutoReplacements();
     loadCerts(currentPage);
   }, [loadCerts, currentPage]);
 
@@ -188,7 +190,7 @@ export default function RegistryPage() {
   }, []);
 
   const handleEditChange = useCallback((field: keyof CertRow, value: string) => {
-    setEditFormData(prev => ({ ...prev, [field]: value }));
+    setEditFormData(prev => ({ ...prev, [field]: applyAutoReplace(value) }));
   }, []);
 
   const saveInlineEdit = useCallback(async () => {
