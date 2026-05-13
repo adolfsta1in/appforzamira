@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [newShort, setNewShort] = useState('');
   const [newLong, setNewLong] = useState('');
   const [replacementsSaved, setReplacementsSaved] = useState(false);
+  const [replacementsError, setReplacementsError] = useState<string | null>(null);
 
   useEffect(() => {
     setLayout(loadPrintLayout());
@@ -52,24 +53,46 @@ export default function SettingsPage() {
   };
 
   const handleSaveReplacements = async () => {
-    await saveAutoReplacements(replacements);
-    setReplacementsSaved(true);
-    setTimeout(() => setReplacementsSaved(false), 3000);
+    try {
+      setReplacementsError(null);
+      await saveAutoReplacements(replacements);
+      setReplacementsSaved(true);
+      setTimeout(() => setReplacementsSaved(false), 3000);
+    } catch {
+      setReplacementsError('Не удалось сохранить правила автозамены');
+    }
   };
 
-  const addReplacement = () => {
+  const addReplacement = async () => {
     if (!newShort.trim() || !newLong.trim()) return;
-    setReplacements(prev => ({ ...prev, [newShort.trim()]: newLong.trim() }));
-    setNewShort('');
-    setNewLong('');
+    const next = { ...replacements, [newShort.trim()]: newLong.trim() };
+    setReplacements(next);
+    try {
+      setReplacementsError(null);
+      await saveAutoReplacements(next);
+      setNewShort('');
+      setNewLong('');
+      setReplacementsSaved(true);
+      setTimeout(() => setReplacementsSaved(false), 3000);
+    } catch {
+      setReplacements(replacements);
+      setReplacementsError('Не удалось добавить правило автозамены');
+    }
   };
 
-  const removeReplacement = (key: string) => {
-    setReplacements(prev => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
+  const removeReplacement = async (key: string) => {
+    const next = { ...replacements };
+    delete next[key];
+    setReplacements(next);
+    try {
+      setReplacementsError(null);
+      await saveAutoReplacements(next);
+      setReplacementsSaved(true);
+      setTimeout(() => setReplacementsSaved(false), 3000);
+    } catch {
+      setReplacements(replacements);
+      setReplacementsError('Не удалось удалить правило автозамены');
+    }
   };
 
   const keys = Object.keys(DEFAULT_PRINT_LAYOUT) as LayoutKey[];
@@ -200,11 +223,15 @@ export default function SettingsPage() {
               placeholder="Полный текст..."
               value={newLong}
               onChange={e => setNewLong(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addReplacement()}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  void addReplacement();
+                }
+              }}
               className="px-3 py-2 border border-gray-300 rounded text-sm flex-1 focus:border-[#2E7D32] focus:outline-none"
             />
             <button
-              onClick={addReplacement}
+              onClick={() => void addReplacement()}
               disabled={!newShort.trim() || !newLong.trim()}
               className="px-4 py-2 bg-blue-500 text-white font-medium text-sm rounded disabled:opacity-50 hover:bg-blue-600"
             >
@@ -212,6 +239,12 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+
+        {replacementsError && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {replacementsError}
+          </div>
+        )}
 
         <button
           onClick={handleSaveReplacements}

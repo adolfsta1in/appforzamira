@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 
 const SYSTEM_TEMPLATE_NAME = '__system_auto_replacements__';
 
-export let AUTO_REPLACEMENTS: Record<string, string> = {
+const DEFAULT_AUTO_REPLACEMENTS: Record<string, string> = {
   'ИП': 'Индивидуальный предприниматель',
   'КР': 'Кыргызстан',
   'РТ': 'Республика Таджикистан',
@@ -11,6 +11,8 @@ export let AUTO_REPLACEMENTS: Record<string, string> = {
   'ЗАО': 'Закрытое акционерное общество',
   'ОАО': 'Открытое акционерное общество',
 };
+
+export let AUTO_REPLACEMENTS: Record<string, string> = { ...DEFAULT_AUTO_REPLACEMENTS };
 
 export async function initAutoReplacements() {
   try {
@@ -21,16 +23,23 @@ export async function initAutoReplacements() {
       .limit(1)
       .maybeSingle();
 
-    if (!error && data?.data) {
-      AUTO_REPLACEMENTS = data.data as Record<string, string>;
+    if (error) {
+      throw error;
     }
+
+    if (data) {
+      AUTO_REPLACEMENTS = (data.data || {}) as Record<string, string>;
+      return;
+    }
+
+    await saveAutoReplacements(DEFAULT_AUTO_REPLACEMENTS);
   } catch (err) {
     console.error('Failed to init auto replacements:', err);
   }
 }
 
 export async function saveAutoReplacements(newRules: Record<string, string>) {
-  AUTO_REPLACEMENTS = newRules;
+  AUTO_REPLACEMENTS = { ...newRules };
   try {
     const { data: existing } = await supabase
       .from('templates')
@@ -40,12 +49,15 @@ export async function saveAutoReplacements(newRules: Record<string, string>) {
       .maybeSingle();
 
     if (existing?.id) {
-      await supabase.from('templates').update({ data: newRules }).eq('id', existing.id);
+      const { error } = await supabase.from('templates').update({ data: newRules }).eq('id', existing.id);
+      if (error) throw error;
     } else {
-      await supabase.from('templates').insert({ name: SYSTEM_TEMPLATE_NAME, data: newRules });
+      const { error } = await supabase.from('templates').insert({ name: SYSTEM_TEMPLATE_NAME, data: newRules });
+      if (error) throw error;
     }
   } catch (err) {
     console.error('Failed to save auto replacements:', err);
+    throw err;
   }
 }
 
