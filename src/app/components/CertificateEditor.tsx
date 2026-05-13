@@ -31,6 +31,7 @@ export interface FieldLayout {
   height: number; // mm
   fontSize: number; // pt
   textAlign: 'left' | 'center' | 'right';
+  color?: '#000' | '#fff';
 }
 
 export interface AllFieldLayouts {
@@ -600,6 +601,34 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
 
                 <div style={{ width: '1px', height: '24px', background: '#ccc' }} />
 
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {([
+                    { value: '#000', label: 'Черный' },
+                    { value: '#fff', label: 'Белый' },
+                  ] as const).map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => updateFieldLayout(activeField, 'color', option.value)}
+                      style={{
+                        padding: '4px 12px',
+                        fontSize: '12px',
+                        border: '1px solid',
+                        borderColor: (layouts[activeField].color || '#000') === option.value ? '#1976D2' : '#ccc',
+                        borderRadius: '4px',
+                        background: option.value,
+                        color: option.value === '#fff' ? '#333' : '#fff',
+                        cursor: 'pointer',
+                        fontWeight: (layouts[activeField].color || '#000') === option.value ? 'bold' : 'normal',
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ width: '1px', height: '24px', background: '#ccc' }} />
+
                 {/* Alignment */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   {(['left', 'center', 'right'] as const).map(align => (
@@ -675,7 +704,8 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
             fontFamily: "'Times New Roman', serif",
             fontWeight: 'bold',
             fontStyle: isNameField ? 'normal' : 'italic',
-            color: '#000',
+            color: layout.color || '#000',
+            WebkitTextFillColor: layout.color || '#000',
             background: 'transparent',
             border: calibrationMode
               ? isSelected ? '2px solid #2E7D32' : '1px dashed rgba(46, 125, 50, 0.5)'
@@ -805,7 +835,8 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
             fontFamily: "'Times New Roman', serif",
             fontWeight: 'bold',
             fontStyle: 'italic',
-            color: '#000',
+            color: base.color || '#000',
+            WebkitTextFillColor: base.color || '#000',
             background: 'transparent',
             border: '1px dashed rgba(46, 125, 50, 0.15)',
             outline: 'none',
@@ -1059,6 +1090,17 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                       <option value="left">left</option>
                       <option value="center">center</option>
                       <option value="right">right</option>
+                    </select>
+                  </label>
+                  <label style={{ fontSize: '10px', color: '#666' }}>
+                    color
+                    <select
+                      value={layouts[selected].color || '#000'}
+                      onChange={e => updateFieldLayout(selected, 'color', e.target.value)}
+                      style={{ width: '100%', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px' }}
+                    >
+                      <option value="#000">black</option>
+                      <option value="#fff">white</option>
                     </select>
                   </label>
                 </div>

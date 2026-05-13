@@ -94,8 +94,6 @@ body {
     background: transparent !important;
     box-shadow: none !important;
     outline: none !important;
-    color: #000 !important;
-    -webkit-text-fill-color: #000 !important;
   }
 
   input.cert-field::placeholder,
@@ -113,8 +111,6 @@ body {
     padding: 0 !important;
     appearance: none !important;
     -webkit-appearance: none !important;
-    color: #000 !important;
-    -webkit-text-fill-color: #000 !important;
   }
 
   @page {

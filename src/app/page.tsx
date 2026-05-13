@@ -74,6 +74,12 @@ function saveDraft(data: CertificateFormData) {
   } catch {}
 }
 
+function toTemplateData(data: CertificateFormData): Partial<CertificateFormData> {
+  const templateData = { ...data } as Partial<CertificateFormData>;
+  UNIQUE_FIELDS.forEach(f => delete templateData[f]);
+  return templateData;
+}
+
 export default function Home() {
   const [formData, setFormData] = useState<CertificateFormData>(EMPTY_FORM_DATA);
   const [draftLoaded, setDraftLoaded] = useState(false);
@@ -95,6 +101,10 @@ export default function Home() {
   const [templateName, setTemplateName] = useState('');
   const [templateSaving, setTemplateSaving] = useState(false);
   const [templateSearch, setTemplateSearch] = useState('');
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [activeTemplateName, setActiveTemplateName] = useState<string | null>(null);
+  const [templateAutoSaveStatus, setTemplateAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const templateAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load draft from localStorage on mount (client-only to avoid SSR hydration issues)
   useEffect(() => {
@@ -109,6 +119,34 @@ export default function Home() {
     const t = setTimeout(() => saveDraft(formData), 300);
     return () => clearTimeout(t);
   }, [formData, draftLoaded]);
+
+  useEffect(() => {
+    if (!draftLoaded || !activeTemplateId) return;
+    if (templateAutoSaveTimerRef.current) clearTimeout(templateAutoSaveTimerRef.current);
+
+    templateAutoSaveTimerRef.current = setTimeout(async () => {
+      setTemplateAutoSaveStatus('saving');
+      const data = toTemplateData(formData);
+      const { error } = await supabase
+        .from('templates')
+        .update({ data })
+        .eq('id', activeTemplateId);
+
+      if (error) {
+        console.warn('Template autosave failed', error);
+        setTemplateAutoSaveStatus('error');
+        return;
+      }
+
+      setTemplates(prev => prev.map(t => t.id === activeTemplateId ? { ...t, data } : t));
+      setTemplateAutoSaveStatus('saved');
+      setTimeout(() => setTemplateAutoSaveStatus(s => (s === 'saved' ? 'idle' : s)), 2500);
+    }, 900);
+
+    return () => {
+      if (templateAutoSaveTimerRef.current) clearTimeout(templateAutoSaveTimerRef.current);
+    };
+  }, [formData, draftLoaded, activeTemplateId]);
 
   const loadTemplates = useCallback(async () => {
     const { data } = await supabase
@@ -200,6 +238,9 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setCopied(false);
+    setActiveTemplateId(null);
+    setActiveTemplateName(null);
+    setTemplateAutoSaveStatus('idle');
 
     const url = URL.createObjectURL(file);
     setPdfUrl(url);
@@ -383,6 +424,9 @@ export default function Home() {
     setSaved(false);
     userEditedQuantityRef.current = false;
     currentPdfFileRef.current = null;
+    setActiveTemplateId(null);
+    setActiveTemplateName(null);
+    setTemplateAutoSaveStatus('idle');
     try { localStorage.removeItem(FORM_DRAFT_KEY); } catch {}
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
@@ -392,10 +436,17 @@ export default function Home() {
     const name = templateName.trim();
     if (!name) return;
     setTemplateSaving(true);
-    const templateData = { ...formData } as Partial<CertificateFormData>;
-    UNIQUE_FIELDS.forEach(f => delete templateData[f]);
-    await supabase.from('templates').insert({ name, data: templateData });
+    const templateData = toTemplateData(formData);
+    const { data } = await supabase
+      .from('templates')
+      .insert({ name, data: templateData })
+      .select()
+      .single();
     await loadTemplates();
+    if (data?.id) {
+      setActiveTemplateId(data.id);
+      setActiveTemplateName(data.name);
+    }
     setTemplateName('');
     setTemplateSaving(false);
   }, [formData, templateName, loadTemplates]);
@@ -423,6 +474,9 @@ export default function Home() {
       serial_number: '', copy_number: '',
       invoice_number: '', invoice_date: '',
     });
+    setActiveTemplateId(t.id);
+    setActiveTemplateName(t.name);
+    setTemplateAutoSaveStatus('idle');
     userEditedQuantityRef.current = false;
     setShowTemplatesPanel(false);
     setTemplateSearch('');
@@ -433,7 +487,12 @@ export default function Home() {
   const handleDeleteTemplate = useCallback(async (id: string) => {
     await supabase.from('templates').delete().eq('id', id);
     setTemplates(prev => prev.filter(t => t.id !== id));
-  }, []);
+    if (activeTemplateId === id) {
+      setActiveTemplateId(null);
+      setActiveTemplateName(null);
+      setTemplateAutoSaveStatus('idle');
+    }
+  }, [activeTemplateId]);
 
   return (
     <div className="min-h-screen bg-gray-50" onClick={() => { if (showTemplatesPanel) setShowTemplatesPanel(false); }}>
@@ -580,6 +639,15 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {activeTemplateName && (
+            <div className="text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+              Шаблон: <span className="font-semibold">{activeTemplateName}</span>
+              {templateAutoSaveStatus === 'saving' && <span className="ml-2 text-amber-600">сохраняется...</span>}
+              {templateAutoSaveStatus === 'saved' && <span className="ml-2 text-green-600">сохранен</span>}
+              {templateAutoSaveStatus === 'error' && <span className="ml-2 text-red-600">ошибка сохранения</span>}
+            </div>
+          )}
 
           <div className="ml-auto flex items-center gap-4">
             <button
