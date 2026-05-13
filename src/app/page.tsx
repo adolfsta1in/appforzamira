@@ -59,6 +59,9 @@ function loadDraft(): CertificateFormData | null {
       additional_info: Array.isArray(data.additional_info)
         ? (data.additional_info.length > 0 ? data.additional_info : [''])
         : [typeof data.additional_info === 'string' ? data.additional_info : ''],
+      text_color_overrides: data.text_color_overrides && typeof data.text_color_overrides === 'object'
+        ? data.text_color_overrides
+        : EMPTY_FORM_DATA.text_color_overrides,
     };
   } catch {
     return null;
@@ -184,6 +187,23 @@ export default function Home() {
     setFormData(prev => ({ ...prev, [key]: [...prev[key], ''] }));
     // Adding a product row means new data coming — let auto-quantity recompute
     if (key === 'products') userEditedQuantityRef.current = false;
+  }, []);
+
+  const updateTextColor = useCallback((field: string, start: number, end: number, color: '#000' | '#fff') => {
+    if (start === end) return;
+    setFormData(prev => {
+      const nextFieldColors = { ...(prev.text_color_overrides[field] || {}) };
+      for (let i = Math.min(start, end); i < Math.max(start, end); i += 1) {
+        nextFieldColors[i] = color;
+      }
+      return {
+        ...prev,
+        text_color_overrides: {
+          ...prev.text_color_overrides,
+          [field]: nextFieldColors,
+        },
+      };
+    });
   }, []);
 
   const removeArrayRow = useCallback(
@@ -466,6 +486,9 @@ export default function Home() {
       additional_info: Array.isArray(tData.additional_info)
         ? (tData.additional_info.length > 0 ? tData.additional_info : [''])
         : [typeof tData.additional_info === 'string' ? tData.additional_info : ''],
+      text_color_overrides: tData.text_color_overrides && typeof tData.text_color_overrides === 'object'
+        ? tData.text_color_overrides
+        : EMPTY_FORM_DATA.text_color_overrides,
       cert_number: '',
       cert_number_on_blank: '',
       registry_col_d: '',
@@ -693,9 +716,10 @@ export default function Home() {
             >
               <CertificateEditor
                 formData={formData}
-                onFieldChange={updateField}
-                onArrayFieldChange={updateArrayField}
-                onAddArrayRow={addArrayRow}
+            onFieldChange={updateField}
+            onArrayFieldChange={updateArrayField}
+            onTextColorChange={updateTextColor}
+            onAddArrayRow={addArrayRow}
                 onRemoveArrayRow={removeArrayRow}
                 calibrationMode={calibrationMode}
               />

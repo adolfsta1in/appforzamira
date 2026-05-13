@@ -27,6 +27,7 @@ export interface CertificateFormData {
   additional_info: string[];
   head_name: string;
   dept_head_name: string;
+  text_color_overrides: Record<string, Record<number, '#000' | '#fff'>>;
 
   // Registry-only fields (NOT printed on blank)
   serial_number: string;
@@ -70,6 +71,7 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   additional_info: [''],
   head_name: '',
   dept_head_name: '',
+  text_color_overrides: {},
   serial_number: '',
   registry_col_d: '',
   copy_number: '',

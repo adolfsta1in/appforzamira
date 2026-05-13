@@ -201,6 +201,7 @@ interface CertificateEditorProps {
   formData: CertificateFormData;
   onFieldChange: (key: keyof CertificateFormData, value: string) => void;
   onArrayFieldChange: (key: ArrayFieldKey, index: number, value: string) => void;
+  onTextColorChange: (field: string, start: number, end: number, color: '#000' | '#fff') => void;
   onAddArrayRow: (key: ArrayFieldKey) => void;
   onRemoveArrayRow: (key: ArrayFieldKey, index: number) => void;
   calibrationMode: boolean;
@@ -210,10 +211,11 @@ interface CertificateEditorProps {
 // 1mm = 3.7795px at 96dpi, but we use mm units directly in CSS
 // The A4 div is 210mm x 297mm
 
-export default function CertificateEditor({ formData, onFieldChange, onArrayFieldChange, onAddArrayRow, onRemoveArrayRow, calibrationMode }: CertificateEditorProps) {
+export default function CertificateEditor({ formData, onFieldChange, onArrayFieldChange, onTextColorChange, onAddArrayRow, onRemoveArrayRow, calibrationMode }: CertificateEditorProps) {
   const [layouts, setLayouts] = useState<AllFieldLayouts>(DEFAULT_LAYOUTS);
   const [selected, setSelected] = useState<string | null>(null);
   const [activeField, setActiveField] = useState<string | null>(null);
+  const [textSelection, setTextSelection] = useState<{ field: string; start: number; end: number } | null>(null);
   const [dragging, setDragging] = useState<{ field: string; startX: number; startY: number; origLeft: number; origTop: number; origLayouts: AllFieldLayouts } | null>(null);
   const [resizing, setResizing] = useState<{ field: string; startX: number; startY: number; origW: number; origH: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -556,6 +558,25 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
   const isMonthSelect = (field: string) =>
     field === 'date_start_month' || field === 'date_end_month';
 
+  const applyTextColor = useCallback((color: '#000' | '#fff') => {
+    if (textSelection && textSelection.start !== textSelection.end) {
+      onTextColorChange(textSelection.field, textSelection.start, textSelection.end, color);
+      return;
+    }
+    if (activeField && layouts[activeField]) {
+      updateFieldLayout(activeField, 'color', color);
+    }
+  }, [activeField, layouts, onTextColorChange, textSelection, updateFieldLayout]);
+
+  const getStyledText = (field: string, value: string, defaultColor: '#000' | '#fff') => {
+    const colors = formData.text_color_overrides?.[field] || {};
+    return Array.from(value || ' ').map((char, index) => (
+      <span key={index} style={{ color: colors[index] || defaultColor }}>
+        {char === '\n' ? '\n' : char}
+      </span>
+    ));
+  };
+
   return (
     <div style={{ display: 'flex', gap: '16px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -609,7 +630,8 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => updateFieldLayout(activeField, 'color', option.value)}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => applyTextColor(option.value)}
                       style={{
                         padding: '4px 12px',
                         fontSize: '12px',
@@ -692,6 +714,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
           const isSelected = calibrationMode && selected === field;
 
           const isNameField = field === 'head_name' || field === 'dept_head_name';
+          const fieldColor = layout.color || '#000';
 
           const baseStyle: React.CSSProperties = {
             position: 'absolute',
@@ -704,8 +727,9 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
             fontFamily: "'Times New Roman', serif",
             fontWeight: 'bold',
             fontStyle: isNameField ? 'normal' : 'italic',
-            color: layout.color || '#000',
-            WebkitTextFillColor: layout.color || '#000',
+            color: 'transparent',
+            WebkitTextFillColor: 'transparent',
+            caretColor: fieldColor,
             background: 'transparent',
             border: calibrationMode
               ? isSelected ? '2px solid #2E7D32' : '1px dashed rgba(46, 125, 50, 0.5)'
@@ -718,6 +742,16 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
             overflow: 'hidden',
             cursor: calibrationMode ? 'move' : 'text',
             boxSizing: 'border-box',
+          };
+          const displayStyle: React.CSSProperties = {
+            ...baseStyle,
+            color: fieldColor,
+            WebkitTextFillColor: undefined,
+            caretColor: undefined,
+            border: '1px solid transparent',
+            pointerEvents: 'none',
+            whiteSpace: isMultiline(field) ? 'pre-wrap' : 'pre',
+            wordBreak: 'break-word',
           };
 
           return (
@@ -740,6 +774,12 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                 </div>
               )}
 
+              {!isMonthSelect(field) && (
+                <div style={{ ...displayStyle, position: 'absolute', top: 0, left: 0 }}>
+                  {getStyledText(field, value, fieldColor)}
+                </div>
+              )}
+
               {isMonthSelect(field) ? (
                 <select
                   value={value}
@@ -751,6 +791,8 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                     position: 'relative',
                     top: 0,
                     left: 0,
+                    color: fieldColor,
+                    WebkitTextFillColor: fieldColor,
                     appearance: calibrationMode ? 'none' : undefined,
                     WebkitAppearance: calibrationMode ? 'none' : undefined,
                   }}
@@ -768,6 +810,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                   value={value}
                   onChange={handleValueChange}
                   onFocus={() => { if (!calibrationMode) setActiveField(field); }}
+                  onSelectionChange={(start, end) => setTextSelection({ field, start, end })}
                   onMouseDown={e => { if (calibrationMode) handleMouseDown(e, field, 'drag'); }}
                   placeholder={calibrationMode ? FIELD_LABELS[field] : ''}
                   style={{ ...baseStyle, position: 'relative', top: 0, left: 0 }}
@@ -778,6 +821,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                   value={value}
                   onChange={e => handleValueChange(e.target.value)}
                   onFocus={() => { if (!calibrationMode) setActiveField(field); }}
+                  onSelect={e => setTextSelection({ field, start: e.currentTarget.selectionStart || 0, end: e.currentTarget.selectionEnd || 0 })}
                   onMouseDown={e => { if (calibrationMode) handleMouseDown(e, field, 'drag'); }}
                   placeholder={calibrationMode ? FIELD_LABELS[field] : ''}
                   style={{ ...baseStyle, position: 'relative', top: 0, left: 0 }}
@@ -789,6 +833,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                   value={value}
                   onChange={e => handleValueChange(e.target.value)}
                   onFocus={() => { if (!calibrationMode) setActiveField(field); }}
+                  onSelect={e => setTextSelection({ field, start: e.currentTarget.selectionStart || 0, end: e.currentTarget.selectionEnd || 0 })}
                   onMouseDown={e => { if (calibrationMode) handleMouseDown(e, field, 'drag'); }}
                   placeholder={calibrationMode ? FIELD_LABELS[field] : ''}
                   style={{ ...baseStyle, position: 'relative', top: 0, left: 0 }}
@@ -835,8 +880,9 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
             fontFamily: "'Times New Roman', serif",
             fontWeight: 'bold',
             fontStyle: 'italic',
-            color: base.color || '#000',
-            WebkitTextFillColor: base.color || '#000',
+            color: 'transparent',
+            WebkitTextFillColor: 'transparent',
+            caretColor: base.color || '#000',
             background: 'transparent',
             border: '1px dashed rgba(46, 125, 50, 0.15)',
             outline: 'none',
@@ -847,6 +893,16 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
             overflow: 'hidden',
             cursor: 'text',
             boxSizing: 'border-box',
+          });
+          const extraDisplayStyle = (extraIdx: number): React.CSSProperties => ({
+            ...extraBaseStyle(extraIdx),
+            color: base.color || '#000',
+            WebkitTextFillColor: undefined,
+            caretColor: undefined,
+            border: '1px solid transparent',
+            pointerEvents: 'none',
+            whiteSpace: multiline ? 'pre-wrap' : 'pre',
+            wordBreak: 'break-word',
           });
 
           // Position of the "+" button: hanging off the right side of the last visible row
@@ -861,13 +917,18 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                 const value = array[arrIdx] || '';
                 const fieldId = `extra_${arrayKey}_${i}`;
                 const style = extraBaseStyle(i);
+                const colorField = `${baseLayoutKey}_${arrIdx}`;
                 return (
                   <div key={fieldId}>
+                    <div style={extraDisplayStyle(i)}>
+                      {getStyledText(colorField, value, base.color || '#000')}
+                    </div>
                     {multiline ? (
                       <textarea
                         value={value}
                         onChange={e => onArrayFieldChange(arrayKey, arrIdx, e.target.value)}
                         onFocus={() => { if (!calibrationMode) setActiveField(baseLayoutKey); }}
+                        onSelect={e => setTextSelection({ field: colorField, start: e.currentTarget.selectionStart || 0, end: e.currentTarget.selectionEnd || 0 })}
                         style={style}
                         className="cert-field"
                       />
@@ -877,6 +938,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                         value={value}
                         onChange={e => onArrayFieldChange(arrayKey, arrIdx, e.target.value)}
                         onFocus={() => { if (!calibrationMode) setActiveField(baseLayoutKey); }}
+                        onSelect={e => setTextSelection({ field: colorField, start: e.currentTarget.selectionStart || 0, end: e.currentTarget.selectionEnd || 0 })}
                         style={style}
                         className="cert-field"
                       />

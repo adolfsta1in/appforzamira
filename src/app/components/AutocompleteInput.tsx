@@ -9,6 +9,7 @@ interface AutocompleteInputProps {
   onChange: (value: string) => void;
   onFocus?: () => void;
   onMouseDown?: (e: React.MouseEvent) => void;
+  onSelectionChange?: (start: number, end: number) => void;
   placeholder?: string;
   style?: React.CSSProperties;
   className?: string;
@@ -21,6 +22,7 @@ export function AutocompleteInput({
   onChange,
   onFocus,
   onMouseDown,
+  onSelectionChange,
   placeholder,
   style,
   className,
@@ -129,6 +131,10 @@ export function AutocompleteInput({
     },
     onFocus: handleFocus,
     onMouseDown,
+    onSelect: (e: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const target = e.currentTarget;
+      onSelectionChange?.(target.selectionStart || 0, target.selectionEnd || 0);
+    },
     onKeyDown: handleKeyDown,
     placeholder,
     className,
