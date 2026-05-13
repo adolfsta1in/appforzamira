@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS, TAJIK_MONTHS } from '@/lib/certificateTypes';
 import { supabase } from '@/lib/supabase';
@@ -59,6 +59,8 @@ export default function RegistryPage() {
   
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<CertRow>>({});
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
   
   const router = useRouter();
 
@@ -229,6 +231,13 @@ export default function RegistryPage() {
     setEditFormData({});
   }, [editingRowId, editFormData, loadCerts, currentPage, certNumberSearch]);
 
+  const syncHorizontalScroll = useCallback((source: 'top' | 'table') => {
+    const from = source === 'top' ? topScrollRef.current : tableScrollRef.current;
+    const to = source === 'top' ? tableScrollRef.current : topScrollRef.current;
+    if (!from || !to || to.scrollLeft === from.scrollLeft) return;
+    to.scrollLeft = from.scrollLeft;
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-[1800px] mx-auto p-6">
@@ -313,7 +322,18 @@ export default function RegistryPage() {
           </div>
         ) : (
           <div className="bg-white border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
+            <div
+              ref={topScrollRef}
+              onScroll={() => syncHorizontalScroll('top')}
+              className="overflow-x-auto border-b border-gray-200"
+            >
+              <div className="h-3 min-w-[3600px]" />
+            </div>
+            <div
+              ref={tableScrollRef}
+              onScroll={() => syncHorizontalScroll('table')}
+              className="overflow-x-auto"
+            >
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
