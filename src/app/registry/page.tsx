@@ -12,6 +12,7 @@ interface CertRow {
   id: string;
   saved_at: string;
   cert_number: string;
+  registry_col_d: string | null;
   date_start_day: string;
   date_start_month: string;
   date_start_year: string;
@@ -53,6 +54,7 @@ export default function RegistryPage() {
   
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [certNumberSearch, setCertNumberSearch] = useState('');
   const pageSize = 100;
   
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
@@ -60,17 +62,24 @@ export default function RegistryPage() {
   
   const router = useRouter();
 
-  const loadCerts = useCallback(async (page: number) => {
+  const loadCerts = useCallback(async (page: number, searchTerm: string) => {
     setLoading(true);
     setError(null);
     
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
+    const normalizedSearch = searchTerm.trim();
 
-    const { data, error: fetchError, count } = await supabase
+    let query = supabase
       .from('certificates')
       .select('*', { count: 'exact' })
-      .order('saved_at', { ascending: false })
+      .order('saved_at', { ascending: false });
+
+    if (normalizedSearch) {
+      query = query.ilike('cert_number', `%${normalizedSearch}%`);
+    }
+
+    const { data, error: fetchError, count } = await query
       .range(from, to);
 
     if (fetchError) {
@@ -84,8 +93,13 @@ export default function RegistryPage() {
 
   useEffect(() => {
     initAutoReplacements();
-    loadCerts(currentPage);
-  }, [loadCerts, currentPage]);
+    loadCerts(currentPage, certNumberSearch);
+  }, [loadCerts, currentPage, certNumberSearch]);
+
+  const handleCertNumberSearchChange = useCallback((value: string) => {
+    setCertNumberSearch(value);
+    setCurrentPage(1);
+  }, []);
 
   const deleteCert = useCallback(async (id: string, pdfPath: string | null) => {
     const { error: deleteError } = await supabase
@@ -140,6 +154,7 @@ export default function RegistryPage() {
       id: cert.id,
       cert_number: cert.cert_number,
       cert_number_on_blank: '',
+      registry_col_d: cert.registry_col_d || '',
       date_start_day: cert.date_start_day,
       date_start_month: cert.date_start_month,
       date_start_year: cert.date_start_year,
@@ -208,10 +223,10 @@ export default function RegistryPage() {
       return;
     }
 
-    await loadCerts(currentPage);
+    await loadCerts(currentPage, certNumberSearch);
     setEditingRowId(null);
     setEditFormData({});
-  }, [editingRowId, editFormData, loadCerts, currentPage]);
+  }, [editingRowId, editFormData, loadCerts, currentPage, certNumberSearch]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -241,7 +256,7 @@ export default function RegistryPage() {
               </button>
             </div>
             <button
-              onClick={() => loadCerts(currentPage)}
+              onClick={() => loadCerts(currentPage, certNumberSearch)}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
               Обновить
@@ -255,6 +270,28 @@ export default function RegistryPage() {
               </button>
             )}
           </div>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <label htmlFor="cert-number-search" className="text-sm font-medium text-gray-700">
+            Поиск по № сертификата
+          </label>
+          <input
+            id="cert-number-search"
+            type="search"
+            value={certNumberSearch}
+            onChange={e => handleCertNumberSearchChange(e.target.value)}
+            placeholder="Введите номер"
+            className="w-80 max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+          {certNumberSearch && (
+            <button
+              onClick={() => handleCertNumberSearchChange('')}
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Сбросить
+            </button>
+          )}
         </div>
 
         {error && (
@@ -307,6 +344,7 @@ export default function RegistryPage() {
                     const row = formToRegistryRow({
                       cert_number: cert.cert_number,
                       cert_number_on_blank: '',
+                      registry_col_d: cert.registry_col_d || '',
                       date_start_day: cert.date_start_day,
                       date_start_month: cert.date_start_month,
                       date_start_year: cert.date_start_year,
@@ -350,6 +388,7 @@ export default function RegistryPage() {
                           if (isEditing) {
                             if (col === 'A') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-20 text-xs p-1 border rounded" value={editFormData.serial_number || ''} onChange={e => handleEditChange('serial_number', e.target.value)} /></td>;
                             if (col === 'C') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-24 text-xs p-1 border rounded" value={editFormData.cert_number || ''} onChange={e => handleEditChange('cert_number', e.target.value)} /></td>;
+                            if (col === 'D') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-16 text-xs p-1 border rounded" value={editFormData.registry_col_d || ''} onChange={e => handleEditChange('registry_col_d', e.target.value)} /></td>;
                             if (col === 'E') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-16 text-xs p-1 border rounded" value={editFormData.copy_number || ''} onChange={e => handleEditChange('copy_number', e.target.value)} /></td>;
                             
                             if (col === 'F') return (
@@ -391,7 +430,7 @@ export default function RegistryPage() {
                             if (col === 'U') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-24 text-xs p-1 border rounded" value={editFormData.invoice_date || ''} onChange={e => handleEditChange('invoice_date', e.target.value)} /></td>;
                             if (col === 'V') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-32 text-xs p-1 border rounded" value={editFormData.inn || ''} onChange={e => handleEditChange('inn', e.target.value)} /></td>;
                             
-                            // Default for uneditable columns (B, D, I, J, K)
+                            // Default for uneditable columns (B, I, J, K)
                             return (
                               <td
                                 key={col}

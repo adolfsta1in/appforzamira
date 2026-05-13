@@ -29,7 +29,7 @@ const UNIQUE_FIELDS: (keyof CertificateFormData)[] = [
   'cert_number_on_blank',
   'date_start_day', 'date_start_month', 'date_start_year',
   'date_end_day', 'date_end_month', 'date_end_year',
-  'serial_number', 'copy_number',
+  'serial_number', 'registry_col_d', 'copy_number',
   'invoice_number', 'invoice_date',
 ];
 
@@ -277,6 +277,7 @@ export default function Home() {
 
       const payload: Record<string, string | null> = {
         cert_number: formData.cert_number,
+        registry_col_d: formData.registry_col_d,
         date_start_day: formData.date_start_day,
         date_start_month: formData.date_start_month,
         date_start_year: formData.date_start_year,
@@ -416,6 +417,7 @@ export default function Home() {
         : [typeof tData.additional_info === 'string' ? tData.additional_info : ''],
       cert_number: '',
       cert_number_on_blank: '',
+      registry_col_d: '',
       date_start_day: '', date_start_month: '', date_start_year: '',
       date_end_day: '', date_end_month: '', date_end_year: '',
       serial_number: '', copy_number: '',

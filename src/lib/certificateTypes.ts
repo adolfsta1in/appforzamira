@@ -30,6 +30,7 @@ export interface CertificateFormData {
 
   // Registry-only fields (NOT printed on blank)
   serial_number: string;
+  registry_col_d: string;
   copy_number: string;
   cert_processing: string;
   total_cost: string;
@@ -70,6 +71,7 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   head_name: '',
   dept_head_name: '',
   serial_number: '',
+  registry_col_d: '',
   copy_number: '',
   cert_processing: '1',
   total_cost: '',
@@ -124,7 +126,7 @@ export function formToRegistryRow(form: CertificateFormData) {
     A,
     B,
     C: form.cert_number,
-    D: '',
+    D: form.registry_col_d,
     E: form.copy_number,
     F: issueDate,
     G: expiryDate,
