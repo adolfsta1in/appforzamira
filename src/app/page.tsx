@@ -37,6 +37,15 @@ const UNIQUE_FIELDS: (keyof CertificateFormData)[] = [
 const FORM_DRAFT_KEY = 'cert_form_draft';
 const FORM_DRAFT_VERSION = '1';
 
+function normalizeNormDocuments(data: Partial<CertificateFormData>): string[] {
+  if (Array.isArray(data.norm_documents) && data.norm_documents.length > 0) {
+    return data.norm_documents;
+  }
+  const legacyRows = [data.norm_documents_1, data.norm_documents_2]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+  return legacyRows.length > 0 ? legacyRows : EMPTY_FORM_DATA.norm_documents;
+}
+
 function loadDraft(): CertificateFormData | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -56,6 +65,7 @@ function loadDraft(): CertificateFormData | null {
       basis_documents: Array.isArray(data.basis_documents) && data.basis_documents.length > 0
         ? data.basis_documents
         : EMPTY_FORM_DATA.basis_documents,
+      norm_documents: normalizeNormDocuments(data),
       additional_info: Array.isArray(data.additional_info)
         ? (data.additional_info.length > 0 ? data.additional_info : [''])
         : [typeof data.additional_info === 'string' ? data.additional_info : ''],
@@ -173,17 +183,23 @@ export default function Home() {
   }, []);
 
   const updateArrayField = useCallback(
-    (key: 'products' | 'basis_documents' | 'additional_info', index: number, value: string) => {
+    (key: 'products' | 'norm_documents' | 'basis_documents' | 'additional_info', index: number, value: string) => {
       setFormData(prev => {
         const arr = [...prev[key]];
         arr[index] = applyAutoReplace(value);
-        return { ...prev, [key]: arr };
+        return {
+          ...prev,
+          [key]: arr,
+          ...(key === 'norm_documents'
+            ? { norm_documents_1: arr[0] || '', norm_documents_2: arr[1] || '' }
+            : {}),
+        };
       });
     },
     [],
   );
 
-  const addArrayRow = useCallback((key: 'products' | 'basis_documents' | 'additional_info') => {
+  const addArrayRow = useCallback((key: 'products' | 'norm_documents' | 'basis_documents' | 'additional_info') => {
     setFormData(prev => ({ ...prev, [key]: [...prev[key], ''] }));
     // Adding a product row means new data coming — let auto-quantity recompute
     if (key === 'products') userEditedQuantityRef.current = false;
@@ -207,10 +223,17 @@ export default function Home() {
   }, []);
 
   const removeArrayRow = useCallback(
-    (key: 'products' | 'basis_documents' | 'additional_info', index: number) => {
+    (key: 'products' | 'norm_documents' | 'basis_documents' | 'additional_info', index: number) => {
       setFormData(prev => {
         if (prev[key].length <= 1) return prev;
-        return { ...prev, [key]: prev[key].filter((_, i) => i !== index) };
+        const arr = prev[key].filter((_, i) => i !== index);
+        return {
+          ...prev,
+          [key]: arr,
+          ...(key === 'norm_documents'
+            ? { norm_documents_1: arr[0] || '', norm_documents_2: arr[1] || '' }
+            : {}),
+        };
       });
     },
     [],
@@ -353,7 +376,7 @@ export default function Home() {
         quantity_unit: formData.quantity_unit,
         code_num: formData.code_num,
         code_nm: formData.code_nm,
-        norm_documents: [formData.norm_documents_1, formData.norm_documents_2].filter(Boolean).join(' '),
+        norm_documents: formData.norm_documents.filter(Boolean).join(' '),
         country: formData.country,
         issued_to_org: formData.issued_to_org,
         issued_to_address: formData.issued_to_address,
@@ -483,6 +506,7 @@ export default function Home() {
       basis_documents: Array.isArray(tData.basis_documents) && tData.basis_documents.length > 0
         ? tData.basis_documents
         : EMPTY_FORM_DATA.basis_documents,
+      norm_documents: normalizeNormDocuments(tData),
       additional_info: Array.isArray(tData.additional_info)
         ? (tData.additional_info.length > 0 ? tData.additional_info : [''])
         : [typeof tData.additional_info === 'string' ? tData.additional_info : ''],

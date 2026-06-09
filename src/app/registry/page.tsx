@@ -47,6 +47,35 @@ interface CertRow {
   pdf_storage_path: string | null;
 }
 
+type SortDirection = 'asc' | 'desc';
+type SortConfig = {
+  column: string;
+  field: keyof CertRow;
+  direction: SortDirection;
+};
+
+const SORTABLE_COLUMNS: Partial<Record<string, keyof CertRow>> = {
+  A: 'serial_number',
+  C: 'cert_number',
+  D: 'registry_col_d',
+  E: 'copy_number',
+  F: 'date_start_year',
+  G: 'date_end_year',
+  H: 'issued_to_org',
+  L: 'cert_processing',
+  M: 'products',
+  N: 'quantity',
+  N1: 'quantity_unit',
+  O: 'basis_document',
+  P: 'country',
+  Q: 'total_cost',
+  R: 'amount_due',
+  S: 'tests',
+  T: 'invoice_number',
+  U: 'invoice_date',
+  V: 'inn',
+};
+
 export default function RegistryPage() {
   const [certs, setCerts] = useState<CertRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +84,12 @@ export default function RegistryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [certNumberSearch, setCertNumberSearch] = useState('');
+  const [companySearch, setCompanySearch] = useState('');
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    column: 'saved_at',
+    field: 'saved_at',
+    direction: 'desc',
+  });
   const pageSize = 100;
   
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
@@ -64,21 +99,32 @@ export default function RegistryPage() {
   
   const router = useRouter();
 
-  const loadCerts = useCallback(async (page: number, searchTerm: string) => {
+  const loadCerts = useCallback(async (
+    page: number,
+    certSearchTerm: string,
+    companySearchTerm: string,
+    sort: SortConfig,
+  ) => {
     setLoading(true);
     setError(null);
     
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
-    const normalizedSearch = searchTerm.trim();
+    const normalizedCertSearch = certSearchTerm.trim();
+    const normalizedCompanySearch = companySearchTerm.trim();
 
     let query = supabase
       .from('certificates')
       .select('*', { count: 'exact' })
-      .order('saved_at', { ascending: false });
+      .order(sort.field, { ascending: sort.direction === 'asc' });
 
-    if (normalizedSearch) {
-      query = query.ilike('cert_number', `%${normalizedSearch}%`);
+    if (normalizedCertSearch) {
+      query = query.ilike('cert_number', `%${normalizedCertSearch}%`);
+    }
+
+    if (normalizedCompanySearch) {
+      const safeCompanySearch = normalizedCompanySearch.replace(/[%,()]/g, ' ');
+      query = query.or(`issued_to_org.ilike.%${safeCompanySearch}%,issued_to_address.ilike.%${safeCompanySearch}%`);
     }
 
     const { data, error: fetchError, count } = await query
@@ -95,11 +141,27 @@ export default function RegistryPage() {
 
   useEffect(() => {
     initAutoReplacements();
-    loadCerts(currentPage, certNumberSearch);
-  }, [loadCerts, currentPage, certNumberSearch]);
+    loadCerts(currentPage, certNumberSearch, companySearch, sortConfig);
+  }, [loadCerts, currentPage, certNumberSearch, companySearch, sortConfig]);
 
   const handleCertNumberSearchChange = useCallback((value: string) => {
     setCertNumberSearch(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleCompanySearchChange = useCallback((value: string) => {
+    setCompanySearch(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleSort = useCallback((column: string) => {
+    const field = SORTABLE_COLUMNS[column];
+    if (!field) return;
+    setSortConfig(prev => ({
+      column,
+      field,
+      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
     setCurrentPage(1);
   }, []);
 
@@ -171,6 +233,7 @@ export default function RegistryPage() {
       quantity_unit: cert.quantity_unit || '',
       code_num: cert.code_num,
       code_nm: cert.code_nm,
+      norm_documents: [cert.norm_documents],
       norm_documents_1: cert.norm_documents,
       norm_documents_2: '',
       country: cert.country,
@@ -226,10 +289,10 @@ export default function RegistryPage() {
       return;
     }
 
-    await loadCerts(currentPage, certNumberSearch);
+    await loadCerts(currentPage, certNumberSearch, companySearch, sortConfig);
     setEditingRowId(null);
     setEditFormData({});
-  }, [editingRowId, editFormData, loadCerts, currentPage, certNumberSearch]);
+  }, [editingRowId, editFormData, loadCerts, currentPage, certNumberSearch, companySearch, sortConfig]);
 
   const syncHorizontalScroll = useCallback((source: 'top' | 'table') => {
     const from = source === 'top' ? topScrollRef.current : tableScrollRef.current;
@@ -266,7 +329,7 @@ export default function RegistryPage() {
               </button>
             </div>
             <button
-              onClick={() => loadCerts(currentPage, certNumberSearch)}
+              onClick={() => loadCerts(currentPage, certNumberSearch, companySearch, sortConfig)}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
               Обновить
@@ -294,9 +357,23 @@ export default function RegistryPage() {
             placeholder="Введите номер"
             className="w-80 max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
-          {certNumberSearch && (
+          <label htmlFor="company-search" className="text-sm font-medium text-gray-700">
+            Поиск по фирме
+          </label>
+          <input
+            id="company-search"
+            type="search"
+            value={companySearch}
+            onChange={e => handleCompanySearchChange(e.target.value)}
+            placeholder="Название или адрес"
+            className="w-80 max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+          {(certNumberSearch || companySearch) && (
             <button
-              onClick={() => handleCertNumberSearchChange('')}
+              onClick={() => {
+                handleCertNumberSearchChange('');
+                handleCompanySearchChange('');
+              }}
               className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               Сбросить
@@ -345,10 +422,31 @@ export default function RegistryPage() {
                         key={col}
                         className="bg-[#2E7D32] text-white px-2 py-2 border border-green-800 text-center whitespace-nowrap text-xs font-medium"
                       >
-                        <div>{col}</div>
-                        <div className="font-normal text-green-100 text-[10px]">
-                          {COLUMN_LABELS[col]}
-                        </div>
+                        {SORTABLE_COLUMNS[col] ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSort(col)}
+                            className="w-full text-white hover:text-green-100"
+                            title="Сортировка"
+                          >
+                            <div>
+                              {col}
+                              {sortConfig.column === col && (
+                                <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                              )}
+                            </div>
+                            <div className="font-normal text-green-100 text-[10px]">
+                              {COLUMN_LABELS[col]}
+                            </div>
+                          </button>
+                        ) : (
+                          <>
+                            <div>{col}</div>
+                            <div className="font-normal text-green-100 text-[10px]">
+                              {COLUMN_LABELS[col]}
+                            </div>
+                          </>
+                        )}
                       </th>
                     ))}
                     <th className="bg-[#2E7D32] text-white px-2 py-2 border border-green-800 text-xs font-medium">
@@ -380,6 +478,7 @@ export default function RegistryPage() {
                       quantity_unit: cert.quantity_unit || '',
                       code_num: cert.code_num,
                       code_nm: cert.code_nm,
+                      norm_documents: [cert.norm_documents],
                       norm_documents_1: cert.norm_documents,
                       norm_documents_2: '',
                       country: cert.country,

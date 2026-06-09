@@ -18,6 +18,7 @@ export interface CertificateFormData {
   quantity_unit: string;
   code_num: string;
   code_nm: string;
+  norm_documents: string[];
   norm_documents_1: string;
   norm_documents_2: string;
   country: string;
@@ -62,6 +63,7 @@ export const EMPTY_FORM_DATA: CertificateFormData = {
   quantity_unit: '',
   code_num: '',
   code_nm: '',
+  norm_documents: ['', ''],
   norm_documents_1: '',
   norm_documents_2: '',
   country: '',

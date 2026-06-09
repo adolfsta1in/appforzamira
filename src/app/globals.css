@@ -85,6 +85,13 @@ body {
     background: #fff !important;
     box-shadow: none !important;
     border: none !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  #print-area * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
   }
 
   /* input/textarea: keep padding & appearance so box model is identical to screen */

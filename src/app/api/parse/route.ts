@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
       quantity_unit: qUnit,
       code_num: parsed.code_num || '',
       code_nm: parsed.code_nm || '',
+      norm_documents: [parsed.norm_documents || '', ''],
       norm_documents_1: parsed.norm_documents || '',
       norm_documents_2: '',
       country: parsed.country || '',

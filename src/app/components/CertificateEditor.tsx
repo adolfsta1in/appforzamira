@@ -177,7 +177,7 @@ function setActivePresetIdLS(id: string | null) {
   else localStorage.removeItem(ACTIVE_PRESET_KEY);
 }
 
-type ArrayFieldKey = 'products' | 'basis_documents' | 'additional_info';
+type ArrayFieldKey = 'products' | 'norm_documents' | 'basis_documents' | 'additional_info';
 
 // Layout keys that render a specific index of an array field.
 // Products and additional_info can grow beyond these base keys via the "+" button on the blank —
@@ -186,6 +186,8 @@ const ARRAY_LAYOUT_MAP: Record<string, { key: ArrayFieldKey; index: number }> = 
   products_1: { key: 'products', index: 0 },
   products_2: { key: 'products', index: 1 },
   products_3: { key: 'products', index: 2 },
+  norm_documents_1: { key: 'norm_documents', index: 0 },
+  norm_documents_2: { key: 'norm_documents', index: 1 },
   basis_document_1: { key: 'basis_documents', index: 0 },
   basis_document_2: { key: 'basis_documents', index: 1 },
   additional_info_1: { key: 'additional_info', index: 0 },
@@ -194,6 +196,7 @@ const ARRAY_LAYOUT_MAP: Record<string, { key: ArrayFieldKey; index: number }> = 
 // For "+" button on the blank: which base layout the extras stack below, and starting index in the array.
 const EXTENDABLE_FIELDS: { baseLayoutKey: string; arrayKey: ArrayFieldKey; startIndex: number; label: string }[] = [
   { baseLayoutKey: 'products_3',       arrayKey: 'products',        startIndex: 3, label: 'Продукция' },
+  { baseLayoutKey: 'norm_documents_2',  arrayKey: 'norm_documents',  startIndex: 2, label: 'Норм. документы' },
   { baseLayoutKey: 'additional_info_1', arrayKey: 'additional_info', startIndex: 1, label: 'Доп. инфо' },
 ];
 
@@ -571,7 +574,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
   const getStyledText = (field: string, value: string, defaultColor: '#000' | '#fff') => {
     const colors = formData.text_color_overrides?.[field] || {};
     return Array.from(value || ' ').map((char, index) => (
-      <span key={index} style={{ color: colors[index] || defaultColor }}>
+      <span key={index} style={{ color: colors[index] || defaultColor, WebkitTextFillColor: colors[index] || defaultColor }}>
         {char === '\n' ? '\n' : char}
       </span>
     ));
