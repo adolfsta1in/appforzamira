@@ -66,7 +66,9 @@ const SORTABLE_COLUMNS: Partial<Record<string, keyof CertRow>> = {
   F: 'date_start_year',
   G: 'date_end_year',
   H: 'issued_to_org',
-  L: 'cert_processing',
+  I: 'cert_processing',
+  J: 'cert_processing',
+  K: 'cert_processing',
   M: 'products',
   N: 'quantity',
   N1: 'quantity_unit',
@@ -752,7 +754,15 @@ export default function RegistryPage() {
                             );
 
                             if (col === 'H') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-32 text-xs p-1 border rounded" value={editFormData.issued_to_org || ''} onChange={e => { handleEditChange('issued_to_org', e.target.value); handleEditChange('issued_to_address', ''); }} /></td>;
-                            if (col === 'L') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-16 text-xs p-1 border rounded" value={editFormData.cert_processing || ''} onChange={e => handleEditChange('cert_processing', e.target.value)} /></td>;
+                            if (col === 'I') return (
+                              <td key={col} className="px-1 py-1 border border-gray-300">
+                                <select className="w-28 text-xs p-1 border rounded" value={editFormData.cert_processing || '1'} onChange={e => handleEditChange('cert_processing', e.target.value)}>
+                                  <option value="1">Экспорт</option>
+                                  <option value="2">Импорт</option>
+                                  <option value="3">Внутренний</option>
+                                </select>
+                              </td>
+                            );
                             if (col === 'M') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-32 text-xs p-1 border rounded" value={editFormData.products || ''} onChange={e => handleEditChange('products', e.target.value)} /></td>;
                             if (col === 'N') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-16 text-xs p-1 border rounded" value={editFormData.quantity || ''} onChange={e => handleEditChange('quantity', e.target.value)} /></td>;
                             if (col === 'N1') return <td key={col} className="px-1 py-1 border border-gray-300"><input className="w-16 text-xs p-1 border rounded" value={editFormData.quantity_unit || ''} onChange={e => handleEditChange('quantity_unit', e.target.value)} /></td>;

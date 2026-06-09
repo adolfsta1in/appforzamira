@@ -125,6 +125,7 @@ export function formToRegistryRow(form: CertificateFormData) {
   const issueDate = formatDateDDMMYY(form.date_start_day, form.date_start_month, form.date_start_year);
   const expiryDate = formatDateDDMMYY(form.date_end_day, form.date_end_month, form.date_end_year);
   const H = [form.issued_to_org, form.issued_to_address].filter(Boolean).join(' ');
+  const processingType = form.cert_processing || '1';
 
   return {
     A,
@@ -135,10 +136,10 @@ export function formToRegistryRow(form: CertificateFormData) {
     F: issueDate,
     G: expiryDate,
     H,
-    I: '',
-    J: '',
-    K: '',
-    L: form.cert_processing || '1',
+    I: processingType === '2' ? '1' : '',
+    J: processingType === '1' ? '1' : '',
+    K: processingType === '3' ? '1' : '',
+    L: '',
     M: form.products.filter(Boolean).join(' '),
     N: form.quantity,
     N1: form.quantity_unit,
@@ -162,9 +163,9 @@ export const COLUMN_LABELS: Record<string, string> = {
   F: 'Дата выдачи',
   G: 'Срок действия до',
   H: 'Наименование предприятия и адрес',
-  I: 'Оформл. 1',
-  J: 'Оформл. 2',
-  K: 'Оформл. 3',
+  I: 'Импорт',
+  J: 'Экспорт',
+  K: 'Внутренний',
   L: 'Оформл. 4',
   M: 'Наименование продукции',
   N: 'Кол-во',

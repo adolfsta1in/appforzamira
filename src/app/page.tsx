@@ -788,13 +788,16 @@ export default function Home() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <SideField label="Оформление">
-                    <input
-                      type="number"
-                      value={formData.cert_processing}
+                  <SideField label="Тип оформления">
+                    <select
+                      value={formData.cert_processing || '1'}
                       onChange={e => updateField('cert_processing', e.target.value)}
                       className="form-input"
-                    />
+                    >
+                      <option value="1">Экспорт</option>
+                      <option value="2">Импорт</option>
+                      <option value="3">Внутренний</option>
+                    </select>
                   </SideField>
                   <SideField label="ИНН">
                     <input
