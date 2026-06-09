@@ -57,6 +57,7 @@ type SortConfig = {
 
 type ExportScope = 'current' | 'filtered' | 'latest';
 type ExportOrder = 'screen' | 'newest' | 'oldest';
+type AccessLevel = 'full' | 'registry';
 
 const PROCESSING_COLUMN_VALUES: Partial<Record<string, string>> = {
   I: '1',
@@ -149,6 +150,7 @@ export default function RegistryPage() {
   const [exportOrder, setExportOrder] = useState<ExportOrder>('screen');
   const [exportLimit, setExportLimit] = useState('100');
   const [exporting, setExporting] = useState(false);
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>('registry');
   const pageSize = 100;
   
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
@@ -157,6 +159,14 @@ export default function RegistryPage() {
   const tableScrollRef = useRef<HTMLDivElement>(null);
   
   const router = useRouter();
+  const canModifyRegistry = accessLevel === 'full';
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(response => (response.ok ? response.json() : null))
+      .then(data => setAccessLevel(data?.level === 'full' ? 'full' : 'registry'))
+      .catch(() => setAccessLevel('registry'));
+  }, []);
 
   const loadCerts = useCallback(async (
     page: number,
@@ -382,6 +392,8 @@ export default function RegistryPage() {
   }, [fetchExportRows]);
 
   const deleteCert = useCallback(async (id: string, pdfPath: string | null) => {
+    if (!canModifyRegistry) return;
+
     const { error: deleteError } = await supabase
       .from('certificates')
       .delete()
@@ -398,9 +410,11 @@ export default function RegistryPage() {
     }
 
     setCerts(prev => prev.filter(c => c.id !== id));
-  }, []);
+  }, [canModifyRegistry]);
 
   const clearAll = useCallback(async () => {
+    if (!canModifyRegistry) return;
+
     if (!confirm('Удалить все сертификаты из реестра?')) return;
 
     const pdfPaths = certs
@@ -422,7 +436,7 @@ export default function RegistryPage() {
     }
 
     setCerts([]);
-  }, [certs]);
+  }, [canModifyRegistry, certs]);
 
   const openPdf = useCallback((pdfPath: string) => {
     const { data } = supabase.storage.from('pdf-files').getPublicUrl(pdfPath);
@@ -430,6 +444,8 @@ export default function RegistryPage() {
   }, []);
 
   const editCert = useCallback((cert: CertRow) => {
+    if (!canModifyRegistry) return;
+
     const formData = {
       id: cert.id,
       cert_number: cert.cert_number,
@@ -474,12 +490,14 @@ export default function RegistryPage() {
     // Save to draft and redirect
     localStorage.setItem('cert_form_draft', JSON.stringify({ version: '1', data: formData }));
     router.push('/');
-  }, [router]);
+  }, [canModifyRegistry, router]);
 
   const startInlineEdit = useCallback((cert: CertRow) => {
+    if (!canModifyRegistry) return;
+
     setEditingRowId(cert.id);
     setEditFormData({ ...cert });
-  }, []);
+  }, [canModifyRegistry]);
 
   const cancelInlineEdit = useCallback(() => {
     setEditingRowId(null);
@@ -491,7 +509,7 @@ export default function RegistryPage() {
   }, []);
 
   const saveInlineEdit = useCallback(async () => {
-    if (!editingRowId) return;
+    if (!editingRowId || !canModifyRegistry) return;
     
     setLoading(true);
     const { error } = await supabase
@@ -508,7 +526,7 @@ export default function RegistryPage() {
     await loadCerts(currentPage, certNumberSearch, companySearch, sortConfig);
     setEditingRowId(null);
     setEditFormData({});
-  }, [editingRowId, editFormData, loadCerts, currentPage, certNumberSearch, companySearch, sortConfig]);
+  }, [editingRowId, canModifyRegistry, editFormData, loadCerts, currentPage, certNumberSearch, companySearch, sortConfig]);
 
   const syncHorizontalScroll = useCallback((source: 'top' | 'table') => {
     const from = source === 'top' ? topScrollRef.current : tableScrollRef.current;
@@ -620,7 +638,7 @@ export default function RegistryPage() {
                 </div>
               )}
             </div>
-            {certs.length > 0 && (
+            {canModifyRegistry && certs.length > 0 && (
               <button
                 onClick={clearAll}
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
@@ -738,14 +756,16 @@ export default function RegistryPage() {
                     <th className="bg-[#2E7D32] text-white px-2 py-2 border border-green-800 text-xs font-medium">
                       PDF
                     </th>
-                    <th className="bg-[#2E7D32] text-white px-2 py-2 border border-green-800 text-xs font-medium">
-                      Действия
-                    </th>
+                    {canModifyRegistry && (
+                      <th className="bg-[#2E7D32] text-white px-2 py-2 border border-green-800 text-xs font-medium">
+                        Действия
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {certs.map((cert, idx) => {
-                    const isEditing = cert.id === editingRowId;
+                    const isEditing = canModifyRegistry && cert.id === editingRowId;
                     const row = formToRegistryRow({
                       cert_number: cert.cert_number,
                       cert_number_on_blank: '',
@@ -878,7 +898,7 @@ export default function RegistryPage() {
                             <span className="text-gray-300 text-xs">—</span>
                           )}
                         </td>
-                        {isEditing ? (
+                        {canModifyRegistry && (isEditing ? (
                           <td className="px-2 py-2 border border-gray-300 text-center space-x-2 whitespace-nowrap">
                             <button
                               onClick={saveInlineEdit}
@@ -916,7 +936,7 @@ export default function RegistryPage() {
                               Удалить
                             </button>
                           </td>
-                        )}
+                        ))}
                       </tr>
                     );
                   })}

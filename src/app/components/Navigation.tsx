@@ -1,17 +1,43 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+
+type AccessLevel = 'full' | 'registry';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>('registry');
 
-  const links = [
+  useEffect(() => {
+    if (pathname === '/login') return;
+
+    fetch('/api/auth/me')
+      .then(response => (response.ok ? response.json() : null))
+      .then(data => setAccessLevel(data?.level === 'full' ? 'full' : 'registry'))
+      .catch(() => setAccessLevel('registry'));
+  }, [pathname]);
+
+  if (pathname === '/login') return null;
+
+  const allLinks = [
     { href: '/', label: 'Новый сертификат' },
     { href: '/registry', label: 'Реестр' },
     { href: '/appendix', label: 'Приложения' },
     { href: '/settings', label: 'Настройки печати' },
   ];
+  const links = accessLevel === 'registry'
+    ? allLinks.filter(link => link.href === '/registry')
+    : allLinks;
+
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setAccessLevel('registry');
+    router.replace('/login');
+    router.refresh();
+  };
 
   return (
     <header className="bg-[#2E7D32] text-white shadow-md no-print">
@@ -20,7 +46,7 @@ export default function Navigation() {
           <h1 className="text-lg font-bold">
             Агентии Тоҷикстандарт
           </h1>
-          <nav className="flex gap-1">
+          <nav className="flex items-center gap-1">
             {links.map(link => (
               <Link
                 key={link.href}
@@ -34,6 +60,13 @@ export default function Navigation() {
                 {link.label}
               </Link>
             ))}
+            <button
+              type="button"
+              onClick={logout}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              Выйти
+            </button>
           </nav>
         </div>
       </div>
