@@ -22,7 +22,13 @@ async function getSignature(level: AccessLevel) {
     ['sign'],
   );
   const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(level));
-  return btoa(String.fromCharCode(...new Uint8Array(signature)))
+  const bytes = new Uint8Array(signature);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+
+  return btoa(binary)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/g, '');
