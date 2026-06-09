@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS, TAJIK_MONTHS } from '@/lib/certificateTypes';
 import { supabase } from '@/lib/supabase';
 import { applyAutoReplace, initAutoReplacements } from '@/lib/autoReplace';
+import * as XLSX from 'xlsx';
 
 interface CertRow {
   id: string;
@@ -54,6 +55,9 @@ type SortConfig = {
   direction: SortDirection;
 };
 
+type ExportScope = 'current' | 'filtered' | 'latest';
+type ExportOrder = 'screen' | 'newest' | 'oldest';
+
 const SORTABLE_COLUMNS: Partial<Record<string, keyof CertRow>> = {
   A: 'serial_number',
   C: 'cert_number',
@@ -76,6 +80,48 @@ const SORTABLE_COLUMNS: Partial<Record<string, keyof CertRow>> = {
   V: 'inn',
 };
 
+function certToRegistryRow(cert: CertRow) {
+  return formToRegistryRow({
+    cert_number: cert.cert_number,
+    cert_number_on_blank: '',
+    registry_col_d: cert.registry_col_d || '',
+    date_start_day: cert.date_start_day,
+    date_start_month: cert.date_start_month,
+    date_start_year: cert.date_start_year,
+    date_end_day: cert.date_end_day,
+    date_end_month: cert.date_end_month,
+    date_end_year: cert.date_end_year,
+    cert_body_name: cert.cert_body_name,
+    cert_body_address: cert.cert_body_address,
+    cert_body_number: cert.cert_body_number,
+    products: [cert.products],
+    quantity: cert.quantity,
+    quantity_unit: cert.quantity_unit || '',
+    code_num: cert.code_num,
+    code_nm: cert.code_nm,
+    norm_documents: [cert.norm_documents],
+    norm_documents_1: cert.norm_documents,
+    norm_documents_2: '',
+    country: cert.country,
+    issued_to_org: cert.issued_to_org,
+    issued_to_address: cert.issued_to_address,
+    basis_documents: [cert.basis_document],
+    additional_info: [cert.additional_info],
+    head_name: cert.head_name,
+    dept_head_name: cert.dept_head_name,
+    text_color_overrides: {},
+    serial_number: cert.serial_number,
+    copy_number: cert.copy_number,
+    cert_processing: cert.cert_processing,
+    total_cost: cert.total_cost,
+    amount_due: cert.amount_due,
+    tests: cert.tests,
+    invoice_number: cert.invoice_number,
+    invoice_date: cert.invoice_date,
+    inn: cert.inn,
+  });
+}
+
 export default function RegistryPage() {
   const [certs, setCerts] = useState<CertRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +136,11 @@ export default function RegistryPage() {
     field: 'saved_at',
     direction: 'desc',
   });
+  const [showExportPanel, setShowExportPanel] = useState(false);
+  const [exportScope, setExportScope] = useState<ExportScope>('current');
+  const [exportOrder, setExportOrder] = useState<ExportOrder>('screen');
+  const [exportLimit, setExportLimit] = useState('100');
+  const [exporting, setExporting] = useState(false);
   const pageSize = 100;
   
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
@@ -164,6 +215,99 @@ export default function RegistryPage() {
     }));
     setCurrentPage(1);
   }, []);
+
+  const fetchExportRows = useCallback(async () => {
+    if (exportScope === 'current') {
+      const rows = [...certs];
+      if (exportOrder === 'newest' || exportOrder === 'oldest') {
+        rows.sort((a, b) => {
+          const left = a.saved_at || '';
+          const right = b.saved_at || '';
+          return exportOrder === 'newest'
+            ? right.localeCompare(left)
+            : left.localeCompare(right);
+        });
+      }
+      return rows;
+    }
+
+    const normalizedCertSearch = certNumberSearch.trim();
+    const normalizedCompanySearch = companySearch.trim();
+    const limit = exportScope === 'latest'
+      ? Math.max(1, Math.min(5000, parseInt(exportLimit, 10) || 100))
+      : totalCount;
+    const chunkSize = 1000;
+    const rows: CertRow[] = [];
+    const sort = exportOrder === 'screen'
+      ? sortConfig
+      : {
+          column: 'saved_at',
+          field: 'saved_at' as keyof CertRow,
+          direction: exportOrder === 'newest' ? 'desc' as const : 'asc' as const,
+        };
+
+    for (let from = 0; from < limit; from += chunkSize) {
+      const to = Math.min(from + chunkSize - 1, limit - 1);
+      let query = supabase
+        .from('certificates')
+        .select('*')
+        .order(sort.field, { ascending: sort.direction === 'asc' });
+
+      if (normalizedCertSearch) {
+        query = query.ilike('cert_number', `%${normalizedCertSearch}%`);
+      }
+
+      if (normalizedCompanySearch) {
+        const safeCompanySearch = normalizedCompanySearch.replace(/[%,()]/g, ' ');
+        query = query.or(`issued_to_org.ilike.%${safeCompanySearch}%,issued_to_address.ilike.%${safeCompanySearch}%`);
+      }
+
+      const { data, error: fetchError } = await query.range(from, to);
+      if (fetchError) throw fetchError;
+
+      rows.push(...((data || []) as CertRow[]));
+      if (!data || data.length < chunkSize) break;
+    }
+
+    return rows;
+  }, [certNumberSearch, certs, companySearch, exportLimit, exportOrder, exportScope, sortConfig, totalCount]);
+
+  const downloadRegistryExcel = useCallback(async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      const rows = await fetchExportRows();
+      if (rows.length === 0) {
+        setError('Нет строк для выгрузки');
+        return;
+      }
+
+      const headers = ALL_COLUMNS.map(col => COLUMN_LABELS[col]);
+      const values = rows.map(cert => {
+        const row = certToRegistryRow(cert);
+        return ALL_COLUMNS.map(col => row[col as keyof typeof row] || '');
+      });
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...values]);
+
+      ws['!cols'] = ALL_COLUMNS.map(col => {
+        if (['I', 'J', 'K', 'D'].includes(col)) return { wch: 5 };
+        if (['A', 'B', 'L', 'N', 'N1'].includes(col)) return { wch: 8 };
+        if (['H', 'M', 'O'].includes(col)) return { wch: 38 };
+        return { wch: 16 };
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Реестр');
+      const date = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `реестр_сертификатов_${date}.xlsx`);
+      setShowExportPanel(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      setError('Ошибка выгрузки Excel: ' + message);
+    } finally {
+      setExporting(false);
+    }
+  }, [fetchExportRows]);
 
   const deleteCert = useCallback(async (id: string, pdfPath: string | null) => {
     const { error: deleteError } = await supabase
@@ -334,6 +478,76 @@ export default function RegistryPage() {
             >
               Обновить
             </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowExportPanel(v => !v)}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+              >
+                Excel
+              </button>
+              {showExportPanel && (
+                <div className="absolute right-0 top-full mt-2 z-50 w-80 rounded-lg border border-gray-200 bg-white p-4 text-sm shadow-xl">
+                  <div className="mb-3">
+                    <label className="mb-1 block text-xs font-semibold text-gray-600">
+                      Что скачать
+                    </label>
+                    <select
+                      value={exportScope}
+                      onChange={e => {
+                        const nextScope = e.target.value as ExportScope;
+                        setExportScope(nextScope);
+                        if (nextScope === 'latest') setExportOrder('newest');
+                      }}
+                      className="w-full rounded border border-gray-300 px-2 py-2 text-sm"
+                    >
+                      <option value="current">Текущую страницу ({certs.length})</option>
+                      <option value="filtered">Все найденные ({totalCount})</option>
+                      <option value="latest">Последние N записей</option>
+                    </select>
+                  </div>
+
+                  {exportScope === 'latest' && (
+                    <div className="mb-3">
+                      <label className="mb-1 block text-xs font-semibold text-gray-600">
+                        Количество строк
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="5000"
+                        value={exportLimit}
+                        onChange={e => setExportLimit(e.target.value)}
+                        className="w-full rounded border border-gray-300 px-2 py-2 text-sm"
+                      />
+                      <p className="mt-1 text-[11px] text-gray-400">Максимум 5000 строк за один файл</p>
+                    </div>
+                  )}
+
+                  <div className="mb-4">
+                    <label className="mb-1 block text-xs font-semibold text-gray-600">
+                      Порядок
+                    </label>
+                    <select
+                      value={exportOrder}
+                      onChange={e => setExportOrder(e.target.value as ExportOrder)}
+                      className="w-full rounded border border-gray-300 px-2 py-2 text-sm"
+                    >
+                      <option value="screen">Как на экране</option>
+                      <option value="newest">Сначала новые</option>
+                      <option value="oldest">Сначала старые</option>
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={downloadRegistryExcel}
+                    disabled={exporting || (exportScope === 'current' && certs.length === 0) || (exportScope !== 'current' && totalCount === 0)}
+                    className="w-full rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {exporting ? 'Готовлю файл...' : 'Скачать .xlsx'}
+                  </button>
+                </div>
+              )}
+            </div>
             {certs.length > 0 && (
               <button
                 onClick={clearAll}
