@@ -58,6 +58,12 @@ type SortConfig = {
 type ExportScope = 'current' | 'filtered' | 'latest';
 type ExportOrder = 'screen' | 'newest' | 'oldest';
 
+const PROCESSING_COLUMN_VALUES: Partial<Record<string, string>> = {
+  I: '1',
+  J: '2',
+  K: '3',
+};
+
 const SORTABLE_COLUMNS: Partial<Record<string, keyof CertRow>> = {
   A: 'serial_number',
   C: 'cert_number',
@@ -165,20 +171,84 @@ export default function RegistryPage() {
     const to = from + pageSize - 1;
     const normalizedCertSearch = certSearchTerm.trim();
     const normalizedCompanySearch = companySearchTerm.trim();
+    const processingSortValue = PROCESSING_COLUMN_VALUES[sort.column];
 
-    let query = supabase
-      .from('certificates')
-      .select('*', { count: 'exact' })
-      .order(sort.field, { ascending: sort.direction === 'asc' });
+    const applyFilters = <T extends { ilike: (column: string, pattern: string) => T; or: (filters: string) => T }>(query: T) => {
+      let next = query;
+      if (normalizedCertSearch) {
+        next = next.ilike('cert_number', `%${normalizedCertSearch}%`);
+      }
+      if (normalizedCompanySearch) {
+        const safeCompanySearch = normalizedCompanySearch.replace(/[%,()]/g, ' ');
+        next = next.or(`issued_to_org.ilike.%${safeCompanySearch}%,issued_to_address.ilike.%${safeCompanySearch}%`);
+      }
+      return next;
+    };
 
-    if (normalizedCertSearch) {
-      query = query.ilike('cert_number', `%${normalizedCertSearch}%`);
+    if (processingSortValue) {
+      const totalQuery = applyFilters(
+        supabase.from('certificates').select('*', { count: 'exact', head: true })
+      );
+      const matchingCountQuery = applyFilters(
+        supabase.from('certificates').select('*', { count: 'exact', head: true })
+      ).eq('cert_processing', processingSortValue);
+
+      const [
+        { error: totalError, count: fullCount },
+        { error: matchingError, count: matchingCountRaw },
+      ] = await Promise.all([totalQuery, matchingCountQuery]);
+
+      if (totalError || matchingError) {
+        setError('Ошибка загрузки: ' + (totalError?.message || matchingError?.message || ''));
+        setLoading(false);
+        return;
+      }
+
+      const count = fullCount || 0;
+      const matchingCount = matchingCountRaw || 0;
+      const firstGroupIsMatch = sort.direction === 'desc';
+      const firstGroupCount = firstGroupIsMatch ? matchingCount : count - matchingCount;
+      const rows: CertRow[] = [];
+
+      const fetchGroup = async (match: boolean, start: number, end: number) => {
+        if (end < start) return [] as CertRow[];
+        let groupQuery = applyFilters(
+          supabase
+            .from('certificates')
+            .select('*')
+            .order('saved_at', { ascending: false })
+        );
+        groupQuery = match
+          ? groupQuery.eq('cert_processing', processingSortValue)
+          : groupQuery.or(`cert_processing.is.null,cert_processing.neq.${processingSortValue}`);
+        const { data, error: groupError } = await groupQuery.range(start, end);
+        if (groupError) throw groupError;
+        return (data || []) as CertRow[];
+      };
+
+      try {
+        if (from < firstGroupCount) {
+          rows.push(...await fetchGroup(firstGroupIsMatch, from, Math.min(to, firstGroupCount - 1)));
+        }
+        if (to >= firstGroupCount) {
+          rows.push(...await fetchGroup(!firstGroupIsMatch, Math.max(0, from - firstGroupCount), to - firstGroupCount));
+        }
+        setCerts(rows);
+        setTotalCount(count);
+      } catch (groupError) {
+        const message = groupError instanceof Error ? groupError.message : 'Неизвестная ошибка';
+        setError('Ошибка загрузки: ' + message);
+      }
+      setLoading(false);
+      return;
     }
 
-    if (normalizedCompanySearch) {
-      const safeCompanySearch = normalizedCompanySearch.replace(/[%,()]/g, ' ');
-      query = query.or(`issued_to_org.ilike.%${safeCompanySearch}%,issued_to_address.ilike.%${safeCompanySearch}%`);
-    }
+    const query = applyFilters(
+      supabase
+        .from('certificates')
+        .select('*', { count: 'exact' })
+        .order(sort.field, { ascending: sort.direction === 'asc' })
+    );
 
     const { data, error: fetchError, count } = await query
       .range(from, to);
