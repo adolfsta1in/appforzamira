@@ -25,6 +25,7 @@ interface CertTemplate {
 
 // Fields unique per certificate — cleared when loading a template
 const UNIQUE_FIELDS: (keyof CertificateFormData)[] = [
+  'id',
   'cert_number',
   'cert_number_on_blank',
   'date_start_day', 'date_start_month', 'date_start_year',
@@ -90,6 +91,12 @@ function saveDraft(data: CertificateFormData) {
 function toTemplateData(data: CertificateFormData): Partial<CertificateFormData> {
   const templateData = { ...data } as Partial<CertificateFormData>;
   UNIQUE_FIELDS.forEach(f => delete templateData[f]);
+  return templateData;
+}
+
+function stripRegistryIdFromTemplate(data: Partial<CertificateFormData>): Partial<CertificateFormData> {
+  const templateData = { ...data };
+  delete templateData.id;
   return templateData;
 }
 
@@ -167,7 +174,27 @@ export default function Home() {
       .select('*')
       .neq('name', '__system_auto_replacements__')
       .order('created_at', { ascending: false });
-    setTemplates((data || []) as CertTemplate[]);
+
+    const rows = (data || []) as CertTemplate[];
+    const sanitizedRows = rows.map(t => (
+      t.data?.id
+        ? { ...t, data: stripRegistryIdFromTemplate(t.data) }
+        : t
+    ));
+
+    const badRows = rows.filter(t => t.data?.id);
+    if (badRows.length > 0) {
+      await Promise.all(
+        badRows.map(t =>
+          supabase
+            .from('templates')
+            .update({ data: stripRegistryIdFromTemplate(t.data || {}) })
+            .eq('id', t.id)
+        )
+      );
+    }
+
+    setTemplates(sanitizedRows);
   }, []);
 
   useEffect(() => { 
@@ -520,6 +547,7 @@ export default function Home() {
       date_end_day: '', date_end_month: '', date_end_year: '',
       serial_number: '', copy_number: '',
       invoice_number: '', invoice_date: '',
+      id: undefined,
     });
     setActiveTemplateId(t.id);
     setActiveTemplateName(t.name);
