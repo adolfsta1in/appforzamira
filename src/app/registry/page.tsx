@@ -151,7 +151,7 @@ export default function RegistryPage() {
   const [exportLimit, setExportLimit] = useState('100');
   const [exporting, setExporting] = useState(false);
   const [accessLevel, setAccessLevel] = useState<AccessLevel>('registry');
-  const pageSize = 100;
+  const pageSize = 2000;
   
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<CertRow>>({});
