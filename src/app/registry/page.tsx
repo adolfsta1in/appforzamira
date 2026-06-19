@@ -59,6 +59,8 @@ type ExportScope = 'current' | 'filtered' | 'latest';
 type ExportOrder = 'screen' | 'newest' | 'oldest';
 type AccessLevel = 'full' | 'registry';
 
+const SUPABASE_MAX_ROWS_PER_REQUEST = 1000;
+
 const PROCESSING_COLUMN_VALUES: Partial<Record<string, string>> = {
   I: '1',
   J: '2',
@@ -222,18 +224,26 @@ export default function RegistryPage() {
 
       const fetchGroup = async (match: boolean, start: number, end: number) => {
         if (end < start) return [] as CertRow[];
-        let groupQuery = applyFilters(
-          supabase
-            .from('certificates')
-            .select('*')
-            .order('saved_at', { ascending: false })
-        );
-        groupQuery = match
-          ? groupQuery.eq('cert_processing', processingSortValue)
-          : groupQuery.or(`cert_processing.is.null,cert_processing.neq.${processingSortValue}`);
-        const { data, error: groupError } = await groupQuery.range(start, end);
-        if (groupError) throw groupError;
-        return (data || []) as CertRow[];
+        const groupRows: CertRow[] = [];
+
+        for (let chunkStart = start; chunkStart <= end; chunkStart += SUPABASE_MAX_ROWS_PER_REQUEST) {
+          const chunkEnd = Math.min(end, chunkStart + SUPABASE_MAX_ROWS_PER_REQUEST - 1);
+          let groupQuery = applyFilters(
+            supabase
+              .from('certificates')
+              .select('*')
+              .order('saved_at', { ascending: false })
+          );
+          groupQuery = match
+            ? groupQuery.eq('cert_processing', processingSortValue)
+            : groupQuery.or(`cert_processing.is.null,cert_processing.neq.${processingSortValue}`);
+          const { data, error: groupError } = await groupQuery.range(chunkStart, chunkEnd);
+          if (groupError) throw groupError;
+          groupRows.push(...((data || []) as CertRow[]));
+          if (!data || data.length < chunkEnd - chunkStart + 1) break;
+        }
+
+        return groupRows;
       };
 
       try {
@@ -253,22 +263,33 @@ export default function RegistryPage() {
       return;
     }
 
-    const query = applyFilters(
-      supabase
-        .from('certificates')
-        .select('*', { count: 'exact' })
-        .order(sort.field, { ascending: sort.direction === 'asc' })
-    );
+    const rows: CertRow[] = [];
+    let fetchedCount: number | null = null;
 
-    const { data, error: fetchError, count } = await query
-      .range(from, to);
+    for (let chunkStart = from; chunkStart <= to; chunkStart += SUPABASE_MAX_ROWS_PER_REQUEST) {
+      const chunkEnd = Math.min(to, chunkStart + SUPABASE_MAX_ROWS_PER_REQUEST - 1);
+      const query = applyFilters(
+        supabase
+          .from('certificates')
+          .select('*', { count: 'exact' })
+          .order(sort.field, { ascending: sort.direction === 'asc' })
+      );
 
-    if (fetchError) {
-      setError('Ошибка загрузки: ' + fetchError.message);
-    } else {
-      setCerts(data || []);
-      if (count !== null) setTotalCount(count);
+      const { data, error: fetchError, count } = await query.range(chunkStart, chunkEnd);
+
+      if (fetchError) {
+        setError('Ошибка загрузки: ' + fetchError.message);
+        setLoading(false);
+        return;
+      }
+
+      rows.push(...((data || []) as CertRow[]));
+      if (fetchedCount === null && count !== null) fetchedCount = count;
+      if (!data || data.length < chunkEnd - chunkStart + 1) break;
     }
+
+    setCerts(rows);
+    if (fetchedCount !== null) setTotalCount(fetchedCount);
     setLoading(false);
   }, []);
 
