@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formToRegistryRow, ALL_COLUMNS, COLUMN_LABELS, TAJIK_MONTHS } from '@/lib/certificateTypes';
 import { supabase } from '@/lib/supabase';
@@ -589,6 +590,12 @@ export default function RegistryPage() {
             >
               Обновить
             </button>
+            <Link
+              href="/registry-test"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white hover:bg-slate-800 transition-colors"
+            >
+              Тестовая таблица
+            </Link>
             <div className="relative">
               <button
                 onClick={() => setShowExportPanel(v => !v)}

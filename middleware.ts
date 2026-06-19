@@ -3,6 +3,7 @@ import { ACCESS_COOKIE_NAME, readAccessCookieValue } from '@/lib/access';
 
 const PUBLIC_PATHS = ['/login'];
 const AUTH_API_PREFIX = '/api/auth';
+const REGISTRY_ACCESS_PATHS = ['/registry', '/registry-test'];
 
 function isPublicAsset(pathname: string) {
   return (
@@ -40,7 +41,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  if (level === 'registry' && pathname !== '/registry') {
+  if (level === 'registry' && !REGISTRY_ACCESS_PATHS.includes(pathname)) {
     const registryUrl = request.nextUrl.clone();
     registryUrl.pathname = '/registry';
     registryUrl.search = '';
