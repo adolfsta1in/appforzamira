@@ -801,7 +801,7 @@ export default function CertificateEditor({ formData, onFieldChange, onArrayFiel
                   }}
                   className="cert-field"
                 >
-                  <option value="">--</option>
+                  <option value=""></option>
                   {TAJIK_MONTHS.map(m => (
                     <option key={m.value} value={m.value}>{m.value}</option>
                   ))}

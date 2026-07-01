@@ -67,10 +67,9 @@ type RegistryGridRow = {
   [key: string]: string | number;
 };
 
-type ProcessingFilter = 'all' | '1' | '2' | '3';
-
 const FETCH_CHUNK_SIZE = 1000;
-const MAX_ROW_OPTIONS = [5000, 10000, 25000, 50000];
+const MAX_ROW_OPTIONS = [2000, 5000, 10000, 25000, 50000];
+const SUM_FIELDS = ['N', 'Q', 'R'];
 
 const COLUMN_LABELS: Record<string, string> = {
   rowNumber: '#',
@@ -173,8 +172,20 @@ function certToGridRow(cert: CertRow, index: number): RegistryGridRow {
   };
 }
 
-function normalize(value: string | number | undefined | null) {
-  return String(value ?? '').toLowerCase().trim();
+function parseSumValue(value: string | number | undefined | null) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const normalized = String(value ?? '')
+    .replace(/\s/g, '')
+    .replace(',', '.')
+    .replace(/[^\d.-]/g, '');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatSumValue(value: number) {
+  return value.toLocaleString('ru-RU', {
+    maximumFractionDigits: 2,
+  });
 }
 
 function parseDisplayDate(value: string | number | undefined): number | null {
@@ -214,12 +225,9 @@ export default function RegistryTestPage() {
   const [loadedCount, setLoadedCount] = useState(0);
   const [maxRows, setMaxRows] = useState(10000);
   const [gridApi, setGridApi] = useState<GridApi<RegistryGridRow> | null>(null);
+  const [summaryRows, setSummaryRows] = useState<RegistryGridRow[]>([]);
 
   const [quickSearch, setQuickSearch] = useState('');
-  const [certSearch, setCertSearch] = useState('');
-  const [companySearch, setCompanySearch] = useState('');
-  const [productSearch, setProductSearch] = useState('');
-  const [processingFilter, setProcessingFilter] = useState<ProcessingFilter>('all');
   const [issueDateFrom, setIssueDateFrom] = useState('');
   const [issueDateTo, setIssueDateTo] = useState('');
   const [expiryDateFrom, setExpiryDateFrom] = useState('');
@@ -310,28 +318,16 @@ export default function RegistryTestPage() {
   }), []);
 
   const filteredRows = useMemo(() => {
-    const certNeedle = normalize(certSearch);
-    const companyNeedle = normalize(companySearch);
-    const productNeedle = normalize(productSearch);
-
     return rows.filter(row => {
-      if (processingFilter !== 'all' && row.cert_processing !== processingFilter) return false;
-      if (certNeedle && !normalize(row.C).includes(certNeedle)) return false;
-      if (companyNeedle && !normalize(row.H).includes(companyNeedle)) return false;
-      if (productNeedle && !normalize(row.M).includes(productNeedle)) return false;
       if (!isDateInRange(row.F, issueDateFrom, issueDateTo)) return false;
       if (!isDateInRange(row.G, expiryDateFrom, expiryDateTo)) return false;
       return true;
     });
   }, [
-    certSearch,
-    companySearch,
     expiryDateFrom,
     expiryDateTo,
     issueDateFrom,
     issueDateTo,
-    processingFilter,
-    productSearch,
     rows,
   ]);
 
@@ -384,9 +380,44 @@ export default function RegistryTestPage() {
     fetchRows();
   }, [fetchRows]);
 
+  const updateSummaryRows = useCallback((api: GridApi<RegistryGridRow> | null = gridApi) => {
+    if (!api) return;
+    const totals = SUM_FIELDS.reduce<Record<string, number>>((acc, field) => {
+      acc[field] = 0;
+      return acc;
+    }, {});
+
+    api.forEachNodeAfterFilter(node => {
+      if (!node.data) return;
+      SUM_FIELDS.forEach(field => {
+        totals[field] += parseSumValue(node.data?.[field]);
+      });
+    });
+
+    const row: RegistryGridRow = {
+      id: 'summary',
+      saved_at: '',
+      cert_processing: '',
+      processing_label: '',
+      rowNumber: 0,
+      A: 'Итого',
+    };
+
+    SUM_FIELDS.forEach(field => {
+      row[field] = formatSumValue(totals[field]);
+    });
+
+    setSummaryRows([row]);
+  }, [gridApi]);
+
   const onGridReady = useCallback((event: GridReadyEvent<RegistryGridRow>) => {
     setGridApi(event.api);
-  }, []);
+    updateSummaryRows(event.api);
+  }, [updateSummaryRows]);
+
+  useEffect(() => {
+    updateSummaryRows();
+  }, [filteredRows, quickSearch, updateSummaryRows]);
 
   const toggleColumn = (field: string, visible: boolean) => {
     setVisibleColumns(prev => ({ ...prev, [field]: visible }));
@@ -395,10 +426,6 @@ export default function RegistryTestPage() {
 
   const resetFilters = () => {
     setQuickSearch('');
-    setCertSearch('');
-    setCompanySearch('');
-    setProductSearch('');
-    setProcessingFilter('all');
     setIssueDateFrom('');
     setIssueDateTo('');
     setExpiryDateFrom('');
@@ -465,6 +492,15 @@ export default function RegistryTestPage() {
             >
               Обновить
             </button>
+            <select
+              value={maxRows}
+              onChange={event => setMaxRows(Number(event.target.value))}
+              className="rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-green-600"
+            >
+              {MAX_ROW_OPTIONS.map(value => (
+                <option key={value} value={value}>Загрузить до {value}</option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={exportCsv}
@@ -482,58 +518,21 @@ export default function RegistryTestPage() {
           </div>
         </div>
 
-        <section className="mb-3 grid gap-3 border border-gray-200 bg-white p-3 shadow-sm xl:grid-cols-[1.4fr_1fr_auto]">
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-3 grid gap-3 border border-gray-200 bg-white p-3 shadow-sm xl:grid-cols-[minmax(260px,0.8fr)_auto_auto]">
+          <div>
             <input
               value={quickSearch}
               onChange={event => setQuickSearch(event.target.value)}
               placeholder="Общий поиск"
-              className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-green-600"
-            />
-            <input
-              value={certSearch}
-              onChange={event => setCertSearch(event.target.value)}
-              placeholder="№ сертификата"
-              className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-green-600"
-            />
-            <input
-              value={companySearch}
-              onChange={event => setCompanySearch(event.target.value)}
-              placeholder="Фирма или адрес"
-              className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-green-600"
-            />
-            <input
-              value={productSearch}
-              onChange={event => setProductSearch(event.target.value)}
-              placeholder="Продукция"
-              className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-green-600"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-green-600"
             />
           </div>
 
-          <div className="grid gap-2 md:grid-cols-3">
-            <select
-              value={processingFilter}
-              onChange={event => setProcessingFilter(event.target.value as ProcessingFilter)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-green-600"
-            >
-              <option value="all">Все типы</option>
-              <option value="1">Экспорт</option>
-              <option value="2">Импорт</option>
-              <option value="3">Внутренний</option>
-            </select>
-            <select
-              value={maxRows}
-              onChange={event => setMaxRows(Number(event.target.value))}
-              className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-green-600"
-            >
-              {MAX_ROW_OPTIONS.map(value => (
-                <option key={value} value={value}>Загрузить до {value}</option>
-              ))}
-            </select>
+          <div>
             <button
               type="button"
               onClick={resetFilters}
-              className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="h-full rounded border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               Сбросить фильтры
             </button>
@@ -589,10 +588,14 @@ export default function RegistryTestPage() {
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               onGridReady={onGridReady}
+              onFilterChanged={() => updateSummaryRows()}
+              onFirstDataRendered={() => updateSummaryRows()}
+              onRowDataUpdated={() => updateSummaryRows()}
               quickFilterText={quickSearch}
+              pinnedBottomRowData={summaryRows}
               pagination
               paginationPageSize={100}
-              paginationPageSizeSelector={[100, 250, 500, 1000]}
+              paginationPageSizeSelector={[100, 250, 500, 1000, 2000]}
               rowBuffer={30}
               suppressCellFocus
               animateRows={false}
